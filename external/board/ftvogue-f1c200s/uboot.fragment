@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2026 Corley S.r.l.
+#
+# Frammento applicato sopra lctech_pi_f1c200s_defconfig di U-Boot.
+
+# L'header TTL della board e' su UART1 (PA2/PA3) -> CONS_INDEX=2.
+# Il defconfig upstream lo ha gia', e' ripetuto qui perche' e' l'unico
+# valore che, se sbagliato, produce silenzio assoluto sulla seriale.
+CONFIG_CONS_INDEX=2
+
+# Boot esplicito, niente bootstd/distro-boot e niente boot.scr: meno pezzi
+# mobili, e nessun fallback che maschera un errore. Attenzione: definire
+# CONFIG_BOOTCOMMAND disattiva di fatto extlinux.conf e boot.scr.
+CONFIG_USE_BOOTARGS=y
+CONFIG_BOOTARGS="console=ttyS0,115200 earlyprintk root=/dev/mmcblk0p2 rootwait rw"
+CONFIG_USE_BOOTCOMMAND=y
+CONFIG_BOOTCOMMAND="load mmc 0:1 0x80008000 zImage && load mmc 0:1 0x81800000 suniv-f1c200s-lctech-pi.dtb && bootz 0x80008000 - 0x81800000"
