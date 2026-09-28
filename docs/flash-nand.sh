@@ -46,12 +46,44 @@ case "$info" in
 	*) die "flash inattesa (attesa SPI NAND da 128 MiB): $info" ;;
 esac
 
+# xfel esce con 0 anche quando erase/write falliscono: stampa soltanto
+# "Can't ...". Quindi si guarda l'output, non l'exit code.
+x() {
+	local out
+	out="$(xfel "$@" 2>&1)" || die "xfel $*: $out"
+	[ -n "$out" ] && echo "$out"
+	case "$out" in
+		*"Can't"*|*ERROR*) die "xfel $* fallito" ;;
+	esac
+	return 0
+}
+
+# Rilegge e confronta. xfel non salta i bad block: un blocco guasto nella
+# zona scritta corrompe l'immagine senza errori, e solo la rilettura lo
+# mostra.
+verify() {
+	local at="$1" file="$2" back
+	back="$(mktemp)"
+	x spinand read "$at" "$(stat -c %s "$file")" "$back"
+	if ! cmp -s "$file" "$back"; then
+		rm -f "$back"
+		die "rilettura diversa da $file a $at: probabile bad block, vedi docs/BOARD-FACTS.md"
+	fi
+	rm -f "$back"
+	echo "flash-nand: $file verificato a $at"
+}
+
 # Erase completo: UBI vuole che i PEB non coperti dall'immagine siano
 # cancellati, altrimenti i residui del firmware di fabbrica fanno fallire
 # l'attach.
-xfel spinand erase 0 "$NAND_SIZE"
-xfel spinand splwrite 1024 "$UBOOT_AT" "$UBOOT"
-xfel spinand write "$UBI_AT" "$ROOTFS"
+x spinand erase 0 "$NAND_SIZE"
+x spinand splwrite 1024 "$UBOOT_AT" "$UBOOT"
+x spinand write "$UBI_AT" "$ROOTFS"
+
+# splwrite scrive l'intero .bin lineare a UBOOT_AT: si rilegge da li'.
+# L'SPL nei blocchi 0-1 e' in formato split e non si confronta byte a byte.
+verify "$UBOOT_AT" "$UBOOT"
+verify "$UBI_AT" "$ROOTFS"
 
 echo
 echo "flash-nand: fatto. Togli la SD, spegni e riaccendi la board."

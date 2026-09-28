@@ -100,6 +100,10 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y shellcheck
           shellcheck -S warning setup.sh docs/*.sh
+      - name: flash-nand.sh si ferma sugli errori di xfel
+        # xfel esce con 0 anche quando erase/write falliscono: il test usa un
+        # xfel finto per provare che lo script non dichiari "fatto" lo stesso.
+        run: ./docs/test-flash-nand.sh
       - name: gli script sono eseguibili
         run: |
           set -euo pipefail

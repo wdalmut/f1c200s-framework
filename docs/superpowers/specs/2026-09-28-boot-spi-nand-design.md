@@ -70,8 +70,11 @@ offset      blocchi  contenuto
 Partizioni MTD, identiche in U-Boot e kernel: `1M(boot),-(ubi)`.
 
 Nella zona `boot` nessuno salta i bad block (né SPL né xfel): rischio
-residuo accettato. Da `0x100000` UBI gestisce bad block e wear leveling;
-la riserva di default (20 PEB su 1024) coincide col massimo del chip.
+residuo accettato. Da `0x100000` UBI gestisce bad block e wear leveling
+**a regime**; la riserva di default (20 PEB su 1024) coincide col massimo
+del chip. La prima scrittura via xfel invece non salta i bad block nemmeno
+lì: `flash-nand.sh` rilegge e confronta per accorgersene (correzione dopo
+la review finale).
 
 ## Flashing
 

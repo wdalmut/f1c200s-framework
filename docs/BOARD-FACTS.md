@@ -194,8 +194,15 @@ scrive l'SPL nel formato della BROM e poi l'intero file lineare ad `<addr>`;
 con `<addr> = 0` scarta tutto tranne l'SPL.
 
 Geometria UBI: PEB 128 KiB, min I/O 2048, niente sub-page, LEB 126976.
-Nella zona `boot` (blocchi 0-7) nessuno salta i bad block; da `0x100000` li
-gestisce UBI.
+
+**Bad block: xfel non li gestisce.** Né `erase` né `write` li saltano (nessuna
+logica in `spinand.c` di xfel), e l'erase completo può cancellare anche i
+marker dei blocchi guasti di fabbrica. Un bad block nella zona scritta, cioè
+nel bootloader o nei primi MiB della partizione `ubi`, corrompe l'immagine
+senza errori. [flash-nand.sh](flash-nand.sh) rilegge e confronta tutto quello
+che scrive, quindi se ne accorge, ma non lo aggira. UBI gestisce i bad block
+solo dopo il primo attach, e solo quelli che conosce. Inoltre xfel esce con 0
+anche quando un'operazione fallisce: lo script controlla l'output.
 
 Su suniv U-Boot proper non conosce la sorgente di boot (header SPL in SRAM
 sovrascritto dai vettori): la scelta SD/NAND nel `bootcmd` si basa su
@@ -207,5 +214,9 @@ sovrascritto dai vettori): la scelta SD/NAND nel `bootcmd` si basa su
   (1) il porting delle patch funziona sul silicio; (2) il nome MTD nel
   kernel è `spi0.0`; (3) la BROM usa la seconda copia SPL nel blocco 1 se il
   blocco 0 è illeggibile.
+* **Scrittura del rootfs che salti i bad block.** Oggi `flash-nand.sh` scrive
+  `rootfs.ubi` con xfel in modo lineare. La strada robusta è scrivere solo il
+  bootloader via FEL e il volume UBI da U-Boot o da Linux (`ubiformat -f`),
+  che saltano i blocchi guasti e ne conservano i marker. Non implementata.
 * **LCD 40 pin, CSI 24 pin, audio.** Non configurati: servirebbero i timing del
   pannello e `sun4i-drm`, ora disattivato nel frammento.

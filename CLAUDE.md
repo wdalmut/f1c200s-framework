@@ -202,6 +202,7 @@ rompe in silenzio senza bisogno di artefatti.
 | La toolchain diventa uClibc | versione di linux-headers non presente nella choice |
 | Senza SD: `U-Boot SPL` poi `Trying to boot from FEL` | patch 0005 non applicata (boot source NAND non mappata) |
 | Senza SD: SPL parte ma non trova U-Boot | `.bin` non scritto a 0x40000 (`splwrite` con indirizzo 0 scarta tutto tranne l'SPL) |
+| `flash-nand: rilettura diversa` | bad block nella zona scritta: xfel non li salta (vedi BOARD-FACTS, "Layout SPI NAND") |
 | `ubi part ubi` / attach UBI fallisce | flash non cancellata per intero, o geometria UBI errata (sezione 10 di check) |
 | `boot: SD` senza SD avviabile | SD non avviabile ma con la nostra FAT inserita |
 | `rootfs: manca /boot/zImage` in `make check` | `BR2_LINUX_KERNEL_INSTALL_TARGET` attivato dopo la build del kernel: `make linux-reinstall && make` |
