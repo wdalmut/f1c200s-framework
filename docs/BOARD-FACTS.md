@@ -178,6 +178,12 @@ verifica che non scenda sotto.
 
 ## Layout SPI NAND
 
+**Verificato su board il 2026-09-29.** Dopo `docs/flash-nand.sh`, e senza SD:
+SPL → U-Boot → `boot: NAND` → login, con `ubi0:rootfs` montato su `/`
+(109 MiB utili). Un file scritto nel rootfs sopravvive allo spegnimento.
+`/proc/mtd` mostra `boot` (`0x100000`) e `ubi` (`0x7f00000`): quindi il kernel
+chiama il device `spi0.0`, altrimenti `mtdparts=` non creerebbe le partizioni.
+
 ```
 offset      blocchi  contenuto
 0x000000    0        SPL, formato split 1 KiB/pagina
@@ -210,10 +216,10 @@ sovrascritto dai vettori): la scelta SD/NAND nel `bootcmd` si basa su
 
 ## Aperti
 
-* **Boot da SPI NAND: non ancora verificato su hardware.** Da confermare:
-  (1) il porting delle patch funziona sul silicio; (2) il nome MTD nel
-  kernel è `spi0.0`; (3) la BROM usa la seconda copia SPL nel blocco 1 se il
-  blocco 0 è illeggibile.
+* **Seconda copia SPL nel blocco 1.** Non verificato che la BROM la usi se il
+  blocco 0 è illeggibile: si potrebbe provare solo con il blocco 0 guasto.
+* **Boot da SD con il `bootcmd` a due rami.** Non ancora riprovato sulla board
+  dopo l'introduzione del ramo NAND.
 * **Scrittura del rootfs che salti i bad block.** Oggi `flash-nand.sh` scrive
   `rootfs.ubi` con xfel in modo lineare. La strada robusta è scrivere solo il
   bootloader via FEL e il volume UBI da U-Boot o da Linux (`ubiformat -f`),
