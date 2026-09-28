@@ -25,6 +25,18 @@ CONFIG_VFAT_FS=y
 CONFIG_NLS_CODEPAGE_437=y
 CONFIG_NLS_ISO8859_1=y
 
+# Boot da SPI NAND: rootfs UBIFS sul volume ubi0:rootfs. Tutto built-in,
+# niente initramfs. Le partizioni arrivano da cmdline (mtdparts=) perche'
+# il DTS upstream non ne dichiara. SPI_SUN6I copre spi0 via il compatible
+# di fallback allwinner,sun8i-h3-spi; e' gia' in sunxi_defconfig, ripetuto
+# perche' senza di lui la NAND sparisce in silenzio.
+CONFIG_SPI_SUN6I=y
+CONFIG_MTD=y
+CONFIG_MTD_SPI_NAND=y
+CONFIG_MTD_CMDLINE_PARTS=y
+CONFIG_MTD_UBI=y
+CONFIG_UBIFS_FS=y
+
 CONFIG_UEVENT_HELPER=y
 
 # Su 64 MB di DDR1, e senza pannello configurato, non pagano il loro costo.

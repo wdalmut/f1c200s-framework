@@ -106,6 +106,11 @@ if [ -n "$kcfg" ] && [ -f "$kcfg" ]; then
 	chk 'CONFIG_CPU_ARM926T=y'
 	chk 'CONFIG_MMC_SUNXI=y'
 	chk 'CONFIG_EXT4_FS=y'
+	chk 'CONFIG_SPI_SUN6I=y'
+	chk 'CONFIG_MTD_SPI_NAND=y'
+	chk 'CONFIG_MTD_CMDLINE_PARTS=y'
+	chk 'CONFIG_MTD_UBI=y'
+	chk 'CONFIG_UBIFS_FS=y'
 	grep -q '^CONFIG_ARCH_MULTI_V7=y' "$kcfg" \
 		&& fail "kernel: ARCH_MULTI_V7 attivo — il binario non gira su ARM926EJ-S" \
 		|| pass "kernel: ARCH_MULTI_V7 disattivo"
