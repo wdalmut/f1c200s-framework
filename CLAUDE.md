@@ -32,11 +32,13 @@ external/
     linux.fragment                          opzioni kernel sopra sunxi_defconfig
     uboot.fragment                          opzioni U-Boot sopra lctech_pi_f1c200s_defconfig
     genimage.cfg                            layout dell'immagine SD
+    patches/uboot/                          patch SPL SPI NAND (serie Icenowy, portata)
     readme.txt
 docs/
   BOARD-FACTS.md                            fatti verificati, con le fonti
   SCELTE-DI-PROGETTO.md                     perché è fatto così
   check-image.sh                            verifica gli artefatti (make check)
+  flash-nand.sh                             scrive la SPI NAND via xfel
 Makefile                                    wrapper su Buildroot
 setup.sh                                    submodule + dipendenze host
 output/                                     generato, in .gitignore
@@ -58,6 +60,7 @@ inoltrato a Buildroot.
 make ftvogue_f1c200s_defconfig      # configura
 make                                # costruisce
 make check                          # verifica gli artefatti prodotti
+./docs/flash-nand.sh                # board in FEL: scrive SPL, U-Boot e rootfs.ubi in NAND
 make defconfigs                     # elenca i defconfig
 make help
 ```
@@ -126,7 +129,7 @@ make distclean              # cancella output/, .config E ANCHE la cache dl/
 
 | Voglio... | Tocco | Poi |
 |---|---|---|
-| Cambiare i `bootargs` | `board/ftvogue-f1c200s/uboot.fragment` → `CONFIG_BOOTARGS` | `make uboot-reconfigure && make` |
+| Cambiare i `bootargs` | `board/ftvogue-f1c200s/uboot.fragment` → `setenv bootargs` nel ramo giusto (SD o NAND) di `CONFIG_BOOTCOMMAND` | `make uboot-reconfigure && make` |
 | Cambiare cosa carica U-Boot | stesso file → `CONFIG_BOOTCOMMAND` | `make uboot-reconfigure && make` |
 | Abilitare un driver kernel | `board/ftvogue-f1c200s/linux.fragment` | `make linux-reconfigure && make` |
 | Cambiare versione kernel | `BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE` **e** `BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_*` | `make` |
@@ -135,6 +138,8 @@ make distclean              # cancella output/, .config E ANCHE la cache dl/
 | Cambiare layout SD | `board/ftvogue-f1c200s/genimage.cfg` | `make` |
 | Aggiungere file nel rootfs | `BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL_F1C200S_PATH)/board/ftvogue-f1c200s/rootfs_overlay"` | `make` |
 | Aggiungere un package proprio | `external/package/<nome>/{Config.in,<nome>.mk}` + `source` in `external/Config.in` | `make menuconfig` |
+| Cambiare il layout NAND | `CONFIG_SYS_SPI_U_BOOT_OFFS` e `CONFIG_MTDPARTS_DEFAULT` (uboot.fragment), `mtdparts=` nel bootcmd, `docs/flash-nand.sh`, sezione 9 di `check-image.sh` | `make uboot-reconfigure && make` |
+| Toccare le patch SPL | `board/ftvogue-f1c200s/patches/uboot/` | `make uboot-dirclean && make` |
 | Bumpare Buildroot | `cd buildroot && git checkout <tag LTS>` + commit del submodule | build completa |
 
 **Kernel e kernel-headers devono restare allineati.** Ora: `6.12.111` +
@@ -149,7 +154,9 @@ promemoria, perché sono gli errori che costano giornate:
 
 1. **La flash è SPI NAND, non NOR.** Niente `sf probe` / `sf read`, niente
    `flash.bin`, niente rootfs JFFS2 con `mtdparts`.
-2. **L'SPL mainline non legge la SPI NAND.** Si boota solo da SD.
+2. **L'SPL mainline non legge la SPI NAND.** Lo fanno le nostre patch in
+   `patches/uboot/`: se un bump di U-Boot le rompe, va rifatto il porting, non
+   tolte le patch.
 3. **La console è UART1 (PA2/PA3)** → `CONFIG_CONS_INDEX=2`. Se è sbagliato non
    esce *nessun* carattere e la board sembra morta.
 4. **Il kernel va forzato su ARMv5.** `sunxi_defconfig` è ARMv7 multiplatform;
@@ -170,7 +177,8 @@ make check
 Esegue `docs/check-image.sh`: header `eGON.BT0` a 8 KiB, layout partizioni,
 contenuto della FAT, `CONS_INDEX=2`, DRAM 64 MB, kernel ARMv5/`suniv`,
 assenza di `sf read` nel `bootcmd`, `bootcmd` davvero compilato in
-`u-boot.bin`, `model` del DTB. Aggiungi un controllo qui ogni volta che scopri
+`u-boot.bin`, `model` del DTB; per la NAND: patch SPL applicate, U-Boot che
+non sfora in UBI, geometria di `rootfs.ubi`, kernel e DTB in `/boot`. Aggiungi un controllo qui ogni volta che scopri
 un guasto silenzioso nuovo.
 
 La CI (`.github/workflows/checks.yml`) non costruisce: verifica solo ciò che si
@@ -192,3 +200,8 @@ rompe in silenzio senza bisogno di artefatti.
 | Modifiche a un fragment ignorate | manca `make linux-reconfigure` / `uboot-reconfigure` |
 | `No rule to make target 'linux-update-defconfig'` | quel target non esiste qui: usa `linux-diff-config` |
 | La toolchain diventa uClibc | versione di linux-headers non presente nella choice |
+| Senza SD: `U-Boot SPL` poi `Trying to boot from FEL` | patch 0005 non applicata (boot source NAND non mappata) |
+| Senza SD: SPL parte ma non trova U-Boot | `.bin` non scritto a 0x40000 (`splwrite` con indirizzo 0 scarta tutto tranne l'SPL) |
+| `ubi part ubi` / attach UBI fallisce | flash non cancellata per intero, o geometria UBI errata (sezione 10 di check) |
+| `boot: SD` senza SD avviabile | SD non avviabile ma con la nostra FAT inserita |
+| `rootfs: manca /boot/zImage` in `make check` | `BR2_LINUX_KERNEL_INSTALL_TARGET` attivato dopo la build del kernel: `make linux-reinstall && make` |

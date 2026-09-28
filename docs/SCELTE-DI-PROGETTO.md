@@ -86,3 +86,28 @@ link morto fra i documenti.
 I controlli che richiedono artefatti stanno in `docs/check-image.sh`, che si
 lancia a mano con `make check` dopo la build. Ogni suo controllo corrisponde a
 un errore realmente commesso durante il bring-up.
+
+## Boot da SPI NAND con patch SPL invece di un fork
+
+L'SPL mainline non legge la SPI NAND. Le alternative erano tre: portare le
+patch di Icenowy Zheng (2022, cinque patch di codice, mai integrate), usare
+come sorgente il fork `jookia_main` che le contiene già, oppure sostituire SPL
+e U-Boot con awboot. Il fork è su v2025.04, porta 142 commit e l'hanno testato
+solo su T113: cinque patch che conosciamo riga per riga costano meno di un
+fork che non controlliamo. awboot fa perdere U-Boot come ambiente di recovery
+e di debug.
+
+Le patch stanno in `external/board/ftvogue-f1c200s/patches/uboot/`, **senza**
+sottodirectory di versione. Con `uboot/2026.07/`, un bump di U-Boot farebbe
+saltare le patch in silenzio, e uscirebbe un SPL che non legge la NAND. Senza
+versione, un bump che le rende inapplicabili fa fallire la build al passo di
+patch. `make check` controlla comunque che `spi_load_read_nand` compaia nella
+map dell'SPL.
+
+Su suniv U-Boot proper non sa da dove è partito l'SPL, per cui il `bootcmd`
+sceglie fra SD e NAND con `test -e mmc 0:1 zImage` e si appoggia alla priorità
+della BROM, che con una SD avviabile inserita parte sempre da lì. È una
+selezione, non un fallback, coerente con il `bootcmd` esplicito: se il ramo
+scelto fallisce, il boot si ferma. Per la stessa ragione l'environment è
+`ENV_IS_NOWHERE`: vale quello compilato, e l'environment su SPI NOR del
+defconfig upstream qui non avrebbe dove stare.

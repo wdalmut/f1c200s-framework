@@ -25,7 +25,7 @@ F1C200s board"* di Andre Przywara, e nel messaggio dichiara il punto chiave:
 |---|---|
 | SoC | Allwinner **F1C200s** (famiglia `suniv`), ARM926EJ-S, **ARMv5TE** |
 | DRAM | **64 MB DDR1** co-packaged, base `0x80000000` |
-| Flash | **1 Gbit SPI NAND** su `spi0` |
+| Flash | **1 Gbit SPI NAND** su `spi0`: GigaDevice **GD5F1GQ4xAYIG** (letto con `xfel spinand`), pagina 2048 B, blocco 128 KiB |
 | Seriale | **UART1**, **PA2 (TX) / PA3 (RX)**, 115200 8N1 → `ttyS0` |
 | USB-C | OTG, modalità FEL per il recovery |
 | Non configurati | LCD 40 pin, CSI 24 pin, audio 1 W |
@@ -63,8 +63,12 @@ tutte e tre le release: il file non è cambiato).
 Riscontro indipendente: `lctech_pi_f1c200s_defconfig` **non** abilita
 `CONFIG_SPL_SPI_SUNXI`, mentre `licheepi_nano_defconfig` (che ha una NOR) sì.
 
-**Conseguenza: con U-Boot mainline questa board boota solo da SD.** Il boot da
-NAND richiede un bootloader fuori mainline. Vedi [Aperti](#aperti).
+**Conseguenza: con U-Boot mainline questa board boota solo da SD.** Questo
+repo porta le patch SPL della serie di Icenowy Zheng (2022, mai integrata) in
+`external/board/ftvogue-f1c200s/patches/uboot/`. Anche su suniv
+`suniv_get_boot_source()` va patchata, perché per la NAND restituisce
+`SUNXI_INVALID_BOOT_SOURCE`. L'SPL patchato legge U-Boot a offset fisso
+**senza saltare i bad block**. Layout in [Layout SPI NAND](#layout-spi-nand).
 
 ### 3. La console è UART1, non UART0
 
@@ -120,18 +124,24 @@ nessun fallback che maschera un errore.
 ```
 BROM (in ROM nel SoC)
   └─ cerca l'header "eGON.BT0" a offset 8 KiB della SD (mmc0)
+     oppure SPI NAND: SPL in formato 1 KiB/pagina nel blocco 0
      └─ carica SPL in SRAM ed esegue
         │
         ├─ SPL: init DDR1 (64 MB @ 0x80000000), UART1 @115200,
         │       carica U-Boot proper in RAM a 0x81700000
+        │       (dalla NAND: u-boot.img a 0x48000, pagine da 2 KiB)
         │
         └─ U-Boot proper (si rialloca in cima alla RAM)
            └─ CONFIG_BOOTCOMMAND:
-                load mmc 0:1 0x80008000 zImage
-                load mmc 0:1 0x81800000 suniv-f1c200s-lctech-pi.dtb
+                if test -e mmc 0:1 zImage          → "boot: SD"
+                    load mmc 0:1 zImage, dtb
+                    root=/dev/mmcblk0p2
+                else                               → "boot: NAND"
+                    ubi part ubi; ubifsmount ubi0:rootfs
+                    ubifsload /boot/zImage, /boot/<dtb>
+                    mtdparts=spi0.0:1M(boot),-(ubi) ubi.mtd=ubi
+                    root=ubi0:rootfs rootfstype=ubifs
                 bootz 0x80008000 - 0x81800000
-              └─ Linux, con CONFIG_BOOTARGS:
-                   console=ttyS0,115200 root=/dev/mmcblk0p2 rootwait rw
 ```
 
 La BROM prova **prima la SD**, poi la SPI: una SD inserita ha sempre la
@@ -166,16 +176,36 @@ poi             p2     ext4, 120 MB, tipo 0x83  → /dev/mmcblk0p2
 La p1 parte a 2 MiB per non calpestare il bootloader. `docs/check-image.sh`
 verifica che non scenda sotto.
 
+## Layout SPI NAND
+
+```
+offset      blocchi  contenuto
+0x000000    0        SPL, formato split 1 KiB/pagina
+0x020000    1        SPL, seconda copia (effetto di splwrite, non garanzia)
+0x040000    2-7      u-boot-sunxi-with-spl.bin lineare
+                     └─ u-boot.img a 0x048000   = CONFIG_SYS_SPI_U_BOOT_OFFS
+0x100000    8-1023   MTD "ubi" (127 MiB)
+                     └─ volume UBI "rootfs", UBIFS, autoresize
+                        └─ /boot/zImage, /boot/suniv-f1c200s-lctech-pi.dtb
+```
+
+Lo scrive [flash-nand.sh](flash-nand.sh). `xfel spinand splwrite 1024 <addr>`
+scrive l'SPL nel formato della BROM e poi l'intero file lineare ad `<addr>`;
+con `<addr> = 0` scarta tutto tranne l'SPL.
+
+Geometria UBI: PEB 128 KiB, min I/O 2048, niente sub-page, LEB 126976.
+Nella zona `boot` (blocchi 0-7) nessuno salta i bad block; da `0x100000` li
+gestisce UBI.
+
+Su suniv U-Boot proper non conosce la sorgente di boot (header SPL in SRAM
+sovrascritto dai vettori): la scelta SD/NAND nel `bootcmd` si basa su
+`test -e mmc 0:1 zImage`.
+
 ## Aperti
 
-* **Boot da SPI NAND.** Richiede un bootloader fuori mainline: awboot, oppure
-  U-Boot con le patch SPI-NAND per sunxi. **Non verificato**, nessuno dei due è
-  stato provato su questa board.
-* **Rootfs in NAND con U-Boot da SD.** Questa strada non richiede niente fuori
-  mainline — servono `CONFIG_MTD_SPI_NAND`, `CONFIG_MTD_UBI`, `CONFIG_UBIFS_FS`
-  nel kernel — ma non è ancora stata implementata qui.
-* **Identità esatta del chip NAND.** Il DTS usa il `compatible` generico
-  `spi-nand`; il modello (W25N01GV o altro) non è stato letto dal silicio.
-  Irrilevante finché la NAND non viene usata.
+* **Boot da SPI NAND: non ancora verificato su hardware.** Da confermare:
+  (1) il porting delle patch funziona sul silicio; (2) il nome MTD nel
+  kernel è `spi0.0`; (3) la BROM usa la seconda copia SPL nel blocco 1 se il
+  blocco 0 è illeggibile.
 * **LCD 40 pin, CSI 24 pin, audio.** Non configurati: servirebbero i timing del
   pannello e `sun4i-drm`, ora disattivato nel frammento.
