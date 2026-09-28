@@ -47,11 +47,12 @@ case "$info" in
 esac
 
 # xfel esce con 0 anche quando erase/write falliscono: stampa soltanto
-# "Can't ...". Quindi si guarda l'output, non l'exit code.
+# "Can't ...". Quindi si guarda l'output, non l'exit code. Il tee verso
+# stderr mostra la barra di avanzamento mentre il comando gira: senza,
+# la scrittura del rootfs (minuti) sembra un blocco.
 x() {
 	local out
-	out="$(xfel "$@" 2>&1)" || die "xfel $*: $out"
-	[ -n "$out" ] && echo "$out"
+	out="$(xfel "$@" 2>&1 | tee /dev/stderr)" || die "xfel $* fallito"
 	case "$out" in
 		*"Can't"*|*ERROR*) die "xfel $* fallito" ;;
 	esac
