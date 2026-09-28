@@ -181,6 +181,32 @@ else
 	fail "u-boot-sunxi-with-spl.bin assente"
 fi
 
+# --- 10. rootfs.ubi ha la geometria della NAND -------------------------------
+# GD5F1GQ4xA: pagina 2048, niente sub-page. Con -m 2048 -s 2048 l'header EC
+# dice VID header a 2048 e dati a 4096. Una geometria sbagliata produce
+# un'immagine che ubinize accetta e che il kernel rifiuta all'attach.
+ubi="$IMAGES/rootfs.ubi"
+if [ -f "$ubi" ]; then
+	m="$(dd if="$ubi" bs=1 count=4 2>/dev/null)"
+	[ "$m" = 'UBI#' ] && pass "rootfs.ubi: magic UBI#" || fail "rootfs.ubi: magic '$m'"
+	offs="$(od -An -tx1 -j16 -N8 "$ubi" | tr -d ' \n')"
+	[ "$offs" = 0000080000001000 ] \
+		&& pass "rootfs.ubi: VID header a 2048, dati a 4096" \
+		|| fail "rootfs.ubi: offset VID/dati = $offs (attesi 0x800 / 0x1000)"
+	size="$(stat -c %s "$ubi")"
+	[ "$size" -le $((0x8000000 - 0x100000)) ] \
+		&& pass "rootfs.ubi ($size B) sta nella partizione ubi" \
+		|| fail "rootfs.ubi ($size B) non sta nei 127 MiB della partizione ubi"
+else
+	fail "rootfs.ubi assente"
+fi
+
+# --- 11. kernel e DTB nel rootfs, dove li cerca il ramo NAND del bootcmd ----
+tgt="$IMAGES/../target/boot"
+for f in zImage suniv-f1c200s-lctech-pi.dtb; do
+	[ -f "$tgt/$f" ] && pass "rootfs: /boot/$f" || fail "rootfs: manca /boot/$f"
+done
+
 echo
 [ "$rc" = 0 ] && echo "  tutto a posto." || echo "  ci sono controlli falliti."
 echo
