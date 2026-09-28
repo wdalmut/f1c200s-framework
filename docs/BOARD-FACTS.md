@@ -184,6 +184,10 @@ SPL → U-Boot → `boot: NAND` → login, con `ubi0:rootfs` montato su `/`
 `/proc/mtd` mostra `boot` (`0x100000`) e `ubi` (`0x7f00000`): quindi il kernel
 chiama il device `spi0.0`, altrimenti `mtdparts=` non creerebbe le partizioni.
 
+Con la SD della stessa build inserita parte la SD. Il ramo SD del `bootcmd`
+passa `root=/dev/mmcblk0p2` (letto in `/proc/cmdline`), e `/boot` contiene
+`zImage` e DTB, che ci sono solo nel rootfs della build nuova.
+
 ```
 offset      blocchi  contenuto
 0x000000    0        SPL, formato split 1 KiB/pagina
@@ -218,8 +222,6 @@ sovrascritto dai vettori): la scelta SD/NAND nel `bootcmd` si basa su
 
 * **Seconda copia SPL nel blocco 1.** Non verificato che la BROM la usi se il
   blocco 0 è illeggibile: si potrebbe provare solo con il blocco 0 guasto.
-* **Boot da SD con il `bootcmd` a due rami.** Non ancora riprovato sulla board
-  dopo l'introduzione del ramo NAND.
 * **Scrittura del rootfs che salti i bad block.** Oggi `flash-nand.sh` scrive
   `rootfs.ubi` con xfel in modo lineare. La strada robusta è scrivere solo il
   bootloader via FEL e il volume UBI da U-Boot o da Linux (`ubiformat -f`),
