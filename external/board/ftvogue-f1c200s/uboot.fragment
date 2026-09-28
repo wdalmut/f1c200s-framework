@@ -11,10 +11,17 @@ CONFIG_CONS_INDEX=2
 # Boot esplicito, niente bootstd/distro-boot e niente boot.scr: meno pezzi
 # mobili, e nessun fallback che maschera un errore. Attenzione: definire
 # CONFIG_BOOTCOMMAND disattiva di fatto extlinux.conf e boot.scr.
-CONFIG_USE_BOOTARGS=y
-CONFIG_BOOTARGS="console=ttyS0,115200 earlyprintk root=/dev/mmcblk0p2 rootwait rw"
+#
+# Un solo U-Boot per SD e NAND. Su suniv U-Boot proper non sa da dove e'
+# partito (sunxi_get_boot_source() restituisce sempre MMC0), quindi si usa
+# la garanzia della BROM: se una SD avviabile e' inserita parte da li'. Se
+# la FAT della SD c'e', si usa la SD; altrimenti la NAND. E' una selezione,
+# non un fallback: se il ramo scelto fallisce, il boot si ferma.
+# I bootargs stanno fra virgolette perche' hush tratta '(' come subshell.
+# CONFIG_BOOTARGS non si usa: lo imposta ciascun ramo.
+# CONFIG_USE_BOOTARGS is not set
 CONFIG_USE_BOOTCOMMAND=y
-CONFIG_BOOTCOMMAND="load mmc 0:1 0x80008000 zImage && load mmc 0:1 0x81800000 suniv-f1c200s-lctech-pi.dtb && bootz 0x80008000 - 0x81800000"
+CONFIG_BOOTCOMMAND="if test -e mmc 0:1 zImage; then echo boot: SD; setenv bootargs \"console=ttyS0,115200 earlyprintk root=/dev/mmcblk0p2 rootwait rw\"; load mmc 0:1 0x80008000 zImage && load mmc 0:1 0x81800000 suniv-f1c200s-lctech-pi.dtb; else echo boot: NAND; setenv bootargs \"console=ttyS0,115200 earlyprintk mtdparts=spi0.0:1M(boot),-(ubi) ubi.mtd=ubi root=ubi0:rootfs rootfstype=ubifs rw\"; ubi part ubi && ubifsmount ubi0:rootfs && ubifsload 0x80008000 /boot/zImage && ubifsload 0x81800000 /boot/suniv-f1c200s-lctech-pi.dtb; fi && bootz 0x80008000 - 0x81800000"
 
 # Boot da SPI NAND. L'SPL mainline non sa leggerla: servono le patch in
 # patches/uboot/ (serie di Icenowy Zheng, 2022, portata a 2026.07). La
@@ -26,3 +33,20 @@ CONFIG_SPL_SPI_SUNXI=y
 CONFIG_SPL_SPI_SUNXI_NAND=y
 CONFIG_SPL_SPI_SUNXI_NAND_ASSUMED_PAGESIZE=0x800
 CONFIG_SYS_SPI_U_BOOT_OFFS=0x48000
+
+# SPI NAND in U-Boot proper: tutto mainline. Il controller spi0 si aggancia
+# via il compatible di fallback allwinner,sun8i-h3-spi.
+CONFIG_DM_MTD=y
+CONFIG_MTD_SPI_NAND=y
+CONFIG_CMD_MTD=y
+CONFIG_CMD_MTDPARTS=y
+CONFIG_MTDIDS_DEFAULT="spi-nand0=spi0.0"
+CONFIG_MTDPARTS_DEFAULT="mtdparts=spi0.0:1M(boot),-(ubi)"
+CONFIG_CMD_UBI=y
+CONFIG_CMD_UBIFS=y
+
+# L'environment nel defconfig upstream sta su SPI NOR, che qui non esiste.
+# Nessun environment persistente: vale quello compilato, coerente con il
+# bootcmd esplicito.
+# CONFIG_ENV_IS_IN_SPI_FLASH is not set
+CONFIG_ENV_IS_NOWHERE=y

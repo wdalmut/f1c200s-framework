@@ -79,6 +79,14 @@ if [ -n "$ucfg" ] && [ -f "$ucfg" ]; then
 	chk 'CONFIG_SPL_SPI_SUNXI_NAND=y'
 	chk 'CONFIG_SPL_SPI_SUNXI_NAND_ASSUMED_PAGESIZE=0x800'
 	chk 'CONFIG_SYS_SPI_U_BOOT_OFFS=0x48000'
+	chk 'CONFIG_MTD_SPI_NAND=y'
+	chk 'CONFIG_CMD_UBI=y'
+	chk 'CONFIG_CMD_UBIFS=y'
+	chk 'CONFIG_ENV_IS_NOWHERE=y'
+	chk 'CONFIG_MTDPARTS_DEFAULT="mtdparts=spi0.0:1M(boot),-(ubi)"'
+	grep -q '^CONFIG_BOOTCOMMAND=.*ubi part ubi' "$ucfg" \
+		&& pass "u-boot: bootcmd ha il ramo NAND (ubi part ubi)" \
+		|| fail "u-boot: il bootcmd non ha il ramo NAND"
 	grep -q '^CONFIG_BOOTCOMMAND=.*load mmc 0:1' "$ucfg" \
 		&& pass "u-boot: bootcmd carica da mmc 0:1" \
 		|| fail "u-boot: il bootcmd non carica da mmc 0:1"
@@ -110,9 +118,11 @@ if [ -f "$IMAGES/u-boot.bin" ]; then
 	# NB: 'grep -c' e non 'grep -q'. Con -q grep esce al primo match e manda
 	# SIGPIPE a strings; sotto 'set -o pipefail' lo stato della pipeline
 	# diventa 141 e il controllo fallisce anche quando la stringa c'e'.
-	n="$(strings "$IMAGES/u-boot.bin" | grep -c '^bootcmd=load mmc 0:1')"
+	# E niente '^': in strings, bootcmd= e' attaccato alla stringa che lo
+	# precede nel binario.
+	n="$(strings "$IMAGES/u-boot.bin" | grep -c 'bootcmd=if test -e mmc 0:1 zImage')"
 	[ "${n:-0}" -ge 1 ] \
-		&& pass "bootcmd presente nell'ambiente compilato in u-boot.bin" \
+		&& pass "bootcmd SD/NAND presente nell'ambiente compilato in u-boot.bin" \
 		|| fail "bootcmd non trovato in u-boot.bin: il fragment non e' stato applicato"
 else
 	skip "u-boot.bin assente"
@@ -144,6 +154,26 @@ if [ -n "$smap" ] && [ -f "$smap" ]; then
 		|| fail "SPL: manca spi_load_read_nand — patch non applicate?"
 else
 	skip "map dell'SPL non trovata: build fatta altrove?"
+fi
+
+# --- 9. U-Boot sta nella zona boot della NAND --------------------------------
+# flash-nand.sh scrive u-boot-sunxi-with-spl.bin lineare a 0x40000; la
+# partizione UBI parte a 0x100000. Se U-Boot cresce oltre, il primo PEB di
+# UBI viene sovrascritto e nessuno se ne accorge fino all'attach.
+# L'SPL cerca u-boot.img a 0x48000, cioe' a +0x8000 nel file: se un bump
+# sposta quell'offset, li' c'e' il vuoto.
+ubin="$IMAGES/u-boot-sunxi-with-spl.bin"
+if [ -f "$ubin" ]; then
+	size="$(stat -c %s "$ubin")"
+	[ $((0x40000 + size)) -le $((0x100000)) ] \
+		&& pass "NAND: u-boot-sunxi-with-spl.bin ($size B) finisce prima di 0x100000" \
+		|| fail "NAND: u-boot-sunxi-with-spl.bin ($size B) sfora in UBI"
+	magic="$(od -An -tx1 -j $((0x8000)) -N4 "$ubin" | tr -d ' ')"
+	[ "$magic" = 27051956 ] \
+		&& pass "NAND: u-boot.img a +0x8000 nel file (flash 0x48000)" \
+		|| fail "NAND: a +0x8000 c'e' '$magic' invece dell'header uImage"
+else
+	fail "u-boot-sunxi-with-spl.bin assente"
 fi
 
 echo
