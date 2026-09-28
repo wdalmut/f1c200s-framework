@@ -83,6 +83,9 @@ if [ -n "$ucfg" ] && [ -f "$ucfg" ]; then
 	chk 'CONFIG_CMD_UBI=y'
 	chk 'CONFIG_CMD_UBIFS=y'
 	chk 'CONFIG_ENV_IS_NOWHERE=y'
+	# ENV_IS_IN_FAT e' il default di sunxi: un uboot.env sulla FAT (basta un
+	# saveenv) sostituirebbe in silenzio il bootcmd compilato.
+	chk '# CONFIG_ENV_IS_IN_FAT is not set'
 	chk 'CONFIG_MTDPARTS_DEFAULT="mtdparts=spi0.0:1M(boot),-(ubi)"'
 	grep -q '^CONFIG_BOOTCOMMAND=.*ubi part ubi' "$ucfg" \
 		&& pass "u-boot: bootcmd ha il ramo NAND (ubi part ubi)" \

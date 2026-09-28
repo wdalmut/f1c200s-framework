@@ -45,8 +45,10 @@ CONFIG_MTDPARTS_DEFAULT="mtdparts=spi0.0:1M(boot),-(ubi)"
 CONFIG_CMD_UBI=y
 CONFIG_CMD_UBIFS=y
 
-# L'environment nel defconfig upstream sta su SPI NOR, che qui non esiste.
-# Nessun environment persistente: vale quello compilato, coerente con il
-# bootcmd esplicito.
+# L'environment nel defconfig upstream sta su SPI NOR, che qui non esiste,
+# e su FAT (default di sunxi): un uboot.env sulla SD sostituirebbe in
+# silenzio il bootcmd. Nessun environment persistente: vale quello
+# compilato, coerente con il bootcmd esplicito.
 # CONFIG_ENV_IS_IN_SPI_FLASH is not set
+# CONFIG_ENV_IS_IN_FAT is not set
 CONFIG_ENV_IS_NOWHERE=y
