@@ -75,6 +75,10 @@ if [ -n "$ucfg" ] && [ -f "$ucfg" ]; then
 	chk 'CONFIG_CONS_INDEX=2'
 	chk 'CONFIG_SUNXI_MINIMUM_DRAM_MB=64'
 	chk 'CONFIG_DEFAULT_DEVICE_TREE="allwinner/suniv-f1c200s-lctech-pi"'
+	chk 'CONFIG_SPL_SPI_SUNXI=y'
+	chk 'CONFIG_SPL_SPI_SUNXI_NAND=y'
+	chk 'CONFIG_SPL_SPI_SUNXI_NAND_ASSUMED_PAGESIZE=0x800'
+	chk 'CONFIG_SYS_SPI_U_BOOT_OFFS=0x48000'
 	grep -q '^CONFIG_BOOTCOMMAND=.*load mmc 0:1' "$ucfg" \
 		&& pass "u-boot: bootcmd carica da mmc 0:1" \
 		|| fail "u-boot: il bootcmd non carica da mmc 0:1"
@@ -125,6 +129,21 @@ elif [ -f "$dtb" ]; then
 	skip "dtc non disponibile: model del DTB non verificato"
 else
 	fail "DTB assente da $IMAGES"
+fi
+
+# --- 8. l'SPL contiene davvero il lettore SPI NAND ---------------------------
+# Le patch stanno in external/.../patches/uboot/. Se un bump di U-Boot le
+# rendesse inapplicabili la build fallirebbe; se invece venissero saltate
+# (per esempio spostate in una sottodirectory di versione) l'SPL uscirebbe
+# senza lettore NAND, e lo si scoprirebbe solo con la board muta.
+smap="$(ls -d "$BUILD"/uboot-*/spl/u-boot-spl.map 2>/dev/null | head -1)"
+if [ -n "$smap" ] && [ -f "$smap" ]; then
+	n="$(grep -c 'spi_load_read_nand' "$smap")"
+	[ "${n:-0}" -ge 1 ] \
+		&& pass "SPL: lettore SPI NAND presente (spi_load_read_nand)" \
+		|| fail "SPL: manca spi_load_read_nand — patch non applicate?"
+else
+	skip "map dell'SPL non trovata: build fatta altrove?"
 fi
 
 echo

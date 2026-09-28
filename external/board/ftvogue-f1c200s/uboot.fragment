@@ -15,3 +15,14 @@ CONFIG_USE_BOOTARGS=y
 CONFIG_BOOTARGS="console=ttyS0,115200 earlyprintk root=/dev/mmcblk0p2 rootwait rw"
 CONFIG_USE_BOOTCOMMAND=y
 CONFIG_BOOTCOMMAND="load mmc 0:1 0x80008000 zImage && load mmc 0:1 0x81800000 suniv-f1c200s-lctech-pi.dtb && bootz 0x80008000 - 0x81800000"
+
+# Boot da SPI NAND. L'SPL mainline non sa leggerla: servono le patch in
+# patches/uboot/ (serie di Icenowy Zheng, 2022, portata a 2026.07). La
+# pagina assunta e' quella reale del chip (2 KiB): solo l'SPL sta nel
+# formato "1 KiB per pagina" della BROM, U-Boot proper e' lineare.
+# 0x48000 = 0x40000 (dove flash-nand.sh scrive il .bin) + 0x8000 (offset
+# di u-boot.img dentro u-boot-sunxi-with-spl.bin).
+CONFIG_SPL_SPI_SUNXI=y
+CONFIG_SPL_SPI_SUNXI_NAND=y
+CONFIG_SPL_SPI_SUNXI_NAND_ASSUMED_PAGESIZE=0x800
+CONFIG_SYS_SPI_U_BOOT_OFFS=0x48000
