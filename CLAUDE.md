@@ -39,6 +39,7 @@ docs/
   SCELTE-DI-PROGETTO.md                     perché è fatto così
   check-image.sh                            verifica gli artefatti (make check)
   flash-nand.sh                             scrive la SPI NAND via xfel
+  test-flash-nand.sh                        prova flash-nand.sh con un xfel finto (anche in CI)
 Makefile                                    wrapper su Buildroot
 setup.sh                                    submodule + dipendenze host
 output/                                     generato, in .gitignore
