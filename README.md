@@ -1,6 +1,7 @@
 # f1c200s-framework — FTVOGUE F1C200S su Buildroot upstream
 
-Immagine SD bootabile per la dev board **FTVOGUE F1C200S**, costruita con
+Immagine per la dev board **FTVOGUE F1C200S**, avviabile da SD o dalla SPI
+NAND integrata, costruita con
 Buildroot upstream tenuto come submodule e un *external tree* che contiene solo
 i file di questa board.
 
@@ -10,7 +11,8 @@ container di build.
 
 * SoC Allwinner F1C200s, ARM926EJ-S (**ARMv5TE**)
 * 64 MB DDR1 co-packaged
-* 1 Gbit SPI NAND (**non usata**: si boota da SD, vedi [Limiti noti](#limiti-noti))
+* 1 Gbit SPI NAND (GigaDevice GD5F1GQ4xAYIG): boot e rootfs UBIFS, vedi
+  [Flash su SPI NAND](#flash-su-spi-nand)
 * Console su **UART1**, pin **PA2 / PA3**, 115200 8N1
 * Linux 6.12 LTS + U-Boot 2026.07, entrambi mainline
 
@@ -40,11 +42,14 @@ container di build.
 │       ├── linux.fragment        opzioni kernel sopra sunxi_defconfig
 │       ├── uboot.fragment        opzioni U-Boot sopra lctech_pi_f1c200s_defconfig
 │       ├── genimage.cfg          layout dell'immagine SD
+│       ├── patches/uboot/        patch SPL per leggere la SPI NAND
 │       └── readme.txt
 ├── docs/
 │   ├── BOARD-FACTS.md
 │   ├── SCELTE-DI-PROGETTO.md
-│   └── check-image.sh            verifica gli artefatti senza avere la board
+│   ├── check-image.sh            verifica gli artefatti senza avere la board
+│   ├── flash-nand.sh             scrive la SPI NAND via xfel
+│   └── test-flash-nand.sh        prova flash-nand.sh con un xfel finto
 ├── Makefile                      wrapper su Buildroot
 └── setup.sh                      submodule + dipendenze host
 ```
@@ -109,8 +114,9 @@ make check
 Controlla gli artefatti senza bisogno della board: header `eGON.BT0` a 8 KiB,
 layout delle partizioni, contenuto della FAT, `CONS_INDEX=2`, mappa DRAM a
 64 MB, kernel davvero ARMv5/`suniv`, `bootcmd` compilato nel binario, `model`
-del DTB. Ogni controllo corrisponde a un errore realmente commesso durante il
-bring-up.
+del DTB; per la NAND: patch SPL applicate, U-Boot che non sfora nella
+partizione UBI, geometria di `rootfs.ubi`, kernel e DTB in `/boot`. Ogni
+controllo corrisponde a un errore realmente commesso durante il bring-up.
 
 ## Flash su SD
 
@@ -122,7 +128,29 @@ sudo dd if=output/images/sdcard.img of=/dev/sdX bs=1M conv=fsync status=progress
 `/dev/sdX` è il **device**, non una partizione (`/dev/sdb`, non `/dev/sdb1`).
 
 La BROM prova prima la SD e poi la SPI: con la SD inserita parte questa
-immagine, togliendola riparte il sistema di fabbrica nella NAND.
+immagine, togliendola riparte quello che c'è nella NAND (il sistema di
+fabbrica, finché non la riscrivi con `flash-nand.sh`).
+
+## Flash su SPI NAND
+
+Verificato su board: senza SD la catena è SPL → U-Boot → `boot: NAND` →
+login, con `ubi0:rootfs` montato su `/`.
+
+```bash
+./docs/flash-nand.sh                  # usa output/images
+```
+
+Serve [`xfel`](https://github.com/xboot/xfel) nel `PATH` e la board in FEL via
+USB-C: con la NAND vuota (o senza un boot0 valido) e senza SD ci va da sola;
+se in NAND c'è già un U-Boot, dal suo prompt `mtd erase boot` e poi reset.
+Lo script cancella l'intera flash, scrive SPL + U-Boot e `rootfs.ubi`, rilegge
+e confronta. Tutti i controlli avvengono **prima** dell'erase.
+
+Lo stesso U-Boot serve entrambi i casi: se trova `zImage` nella FAT della SD
+boota da SD, altrimenti dalla NAND. Una SD avviabile inserita vince sempre.
+
+Layout della flash e limiti (xfel non salta i bad block) in
+[BOARD-FACTS, Layout SPI NAND](docs/BOARD-FACTS.md#layout-spi-nand).
 
 ## Console seriale
 
@@ -164,13 +192,14 @@ non esce nulla nemmeno così, il problema è il cablaggio seriale.
 
 ## Limiti noti
 
-* **Non si boota dalla SPI NAND.** L'SPL di U-Boot mainline non sa leggerla
-  (verificato su v2025.10, v2026.04, v2026.07). Servirebbe un bootloader fuori
-  mainline — awboot o U-Boot patchato — **non provato**. Vedi
+* **Il boot da SPI NAND richiede patch all'SPL.** U-Boot mainline non sa
+  leggerla (verificato su v2025.10, v2026.04, v2026.07): il repo porta la serie
+  di Icenowy Zheng in `external/board/ftvogue-f1c200s/patches/uboot/`. Un bump
+  di U-Boot che le rompe va risolto rifacendo il porting. Vedi
   [BOARD-FACTS §2](docs/BOARD-FACTS.md).
-* **La NAND non è usata affatto**, nemmeno come storage. Usarla come rootfs UBI
-  con U-Boot che parte da SD non richiede niente fuori mainline, ma non è
-  ancora implementato.
+* **Bad block in scrittura.** `flash-nand.sh` scrive con xfel in modo lineare:
+  un blocco guasto nella zona scritta viene rilevato dalla rilettura, non
+  aggirato.
 * **LCD, CSI e audio non sono configurati.**
 
 ## Licenza

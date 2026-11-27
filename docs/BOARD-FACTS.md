@@ -63,8 +63,8 @@ tutte e tre le release: il file non è cambiato).
 Riscontro indipendente: `lctech_pi_f1c200s_defconfig` **non** abilita
 `CONFIG_SPL_SPI_SUNXI`, mentre `licheepi_nano_defconfig` (che ha una NOR) sì.
 
-**Conseguenza: con U-Boot mainline questa board boota solo da SD.** Questo
-repo porta le patch SPL della serie di Icenowy Zheng (2022, mai integrata) in
+**Conseguenza: con U-Boot mainline *non patchato* questa board boota solo da
+SD.** Per questo il repo porta le patch SPL della serie di Icenowy Zheng (2022, mai integrata) in
 `external/board/ftvogue-f1c200s/patches/uboot/`. Anche su suniv
 `suniv_get_boot_source()` va patchata, perché per la NAND restituisce
 `SUNXI_INVALID_BOOT_SOURCE`. L'SPL patchato legge U-Boot a offset fisso
@@ -145,9 +145,10 @@ BROM (in ROM nel SoC)
 ```
 
 La BROM prova **prima la SD**, poi la SPI: una SD inserita ha sempre la
-precedenza sul firmware di fabbrica nella NAND, e toglierla fa ripartire il
-sistema originale. Riscontro: la board boota la build di questo repo con la SD
-inserita, e il sistema preinstallato senza.
+precedenza su quello che c'è nella NAND, e toglierla fa ripartire la NAND.
+Riscontro: con la NAND di fabbrica la board boota la build di questo repo con
+la SD inserita, e il sistema preinstallato senza; dopo `flash-nand.sh`, senza
+SD parte la nostra build dalla NAND (vedi [Layout SPI NAND](#layout-spi-nand)).
 
 ## Mappa di memoria
 
