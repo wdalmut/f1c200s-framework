@@ -47,7 +47,10 @@ Le ragioni dell'organizzazione dei file sono nel
 * Il `.dtsi` del kernel definisce i2c0 solo su PD0/PD12: il gruppo
   `i2c0-pe-pins` è nel DTS EGARE.
 * Da Linux: `/sys/bus/i2c/devices/0-0050/eeprom` (driver
-  `CONFIG_EEPROM_AT24`).
+  `CONFIG_EEPROM_AT24`). **Verificato** (prova su board, 2026-11-27) con la
+  build EGARE avviata da SD (`root=/dev/mmcblk0p2`, model `EGARE F1C200S`):
+  `hexdump -C` legge 256 byte, tutti `ff`; scrittura di `a5` all'offset 255
+  con `dd`, riletto `a5`, poi ripristinato `ff`.
 
 ## Build e flash
 
@@ -71,7 +74,6 @@ ci sia `eeprom@50` e che il kernel abbia `CONFIG_EEPROM_AT24=y`.
 * Boot da SPI NAND con la build EGARE (`boot: NAND`, `ubi0:rootfs` su `/`).
   Quello con l'immagine FTVOGUE è verificato, vedi sopra.
 * `df -h /` da NAND: attesi circa 230-240 MiB con `MAXLEBCNT=2040`.
-* EEPROM da `/sys/bus/i2c/devices/0-0050/eeprom`, lettura e scrittura.
 
 ## Lavoro futuro
 
