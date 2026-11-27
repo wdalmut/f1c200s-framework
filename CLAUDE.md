@@ -226,6 +226,8 @@ rompe in silenzio senza bisogno di artefatti.
 | La toolchain diventa uClibc | versione di linux-headers non presente nella choice |
 | Senza SD: `U-Boot SPL` poi `Trying to boot from FEL` | patch 0005 non applicata (boot source NAND non mappata) |
 | Senza SD: SPL parte ma non trova U-Boot | `.bin` non scritto a 0x40000 (`splwrite` con indirizzo 0 scarta tutto tranne l'SPL) |
+| `lsusb` vede `1f3a:efe8` ma `xfel` dice `No FEL device found` | permessi sul device USB: manca la regola udev (README, "Flash su SPI NAND") |
+| La board non va in FEL (SPL valido in NAND, nessun pulsante) | dal prompt di U-Boot `mtd erase spi-nand0 0 0x40000`, poi accensione senza SD |
 | `flash-nand: rilettura diversa` | bad block nella zona scritta: xfel non li salta (vedi BOARD-FACTS, "Layout SPI NAND") |
 | `ubi part ubi` / attach UBI fallisce | flash non cancellata per intero, o geometria UBI errata (sezione 10 di check) |
 | `boot: SD` senza SD avviabile | SD non avviabile ma con la nostra FAT inserita |

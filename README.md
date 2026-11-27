@@ -75,10 +75,17 @@ sudo apt install build-essential git bc bison flex libssl-dev \
 Non serve né Docker né una toolchain preinstallata: Buildroot costruisce la
 propria (`arm-buildroot-linux-gnueabi-`, EABI soft float).
 
+Spazio su disco: circa **11 GB per ogni build** (`output/`, e
+`output-egare/` per la seconda board) più circa 1 GB di sorgenti scaricati in
+`buildroot/dl/`, condivisi fra le build. La prima build richiede la rete.
+
+Per scrivere la SPI NAND serve anche `xfel`, che Buildroot non costruisce:
+vedi [Flash su SPI NAND](#flash-su-spi-nand).
+
 ## Build
 
 ```bash
-git clone --recurse-submodules <url> f1c200s-framework
+git clone --recurse-submodules https://github.com/wdalmut/f1c200s-framework.git
 cd f1c200s-framework
 ./setup.sh
 
@@ -143,9 +150,32 @@ login, con `ubi0:rootfs` montato su `/`.
 ./docs/flash-nand.sh                  # usa output/images
 ```
 
-Serve [`xfel`](https://github.com/xboot/xfel) nel `PATH` e la board in FEL via
-USB-C: con la NAND vuota (o senza un boot0 valido) e senza SD ci va da sola;
-se in NAND c'è già un U-Boot, dal suo prompt `mtd erase boot` e poi reset.
+Serve [`xfel`](https://github.com/xboot/xfel) nel `PATH`. Non è un pacchetto
+Debian/Ubuntu e Buildroot non lo costruisce: si compila dai sorgenti, e ha
+bisogno di libusb:
+
+```bash
+sudo apt install libusb-1.0-0-dev pkg-config
+git clone https://github.com/xboot/xfel.git && cd xfel
+make && sudo make install
+```
+
+`sudo make install` installa anche la regola udev di xfel
+(`/etc/udev/rules.d/99-xfel.rules`). Se invece copi solo il binario (per
+esempio in `~/bin`, o da una release), la regola manca: `lsusb` vede
+`1f3a:efe8` ma `xfel version` risponde `No FEL device found`. È un problema
+di permessi: il device USB è di root e xfel non riesce ad aprirlo (non dice
+"permesso negato"). Regola udev, poi scollegare e ricollegare la board:
+
+```bash
+echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="1f3a", ATTR{idProduct}=="efe8", MODE="0660", GROUP="plugdev", TAG+="uaccess"' \
+  | sudo tee /etc/udev/rules.d/99-allwinner-fel.rules
+sudo udevadm control --reload-rules
+```
+
+La board deve essere in FEL via USB-C: con la NAND vuota (o senza un boot0
+valido) e senza SD ci va da sola; se in NAND c'è già un U-Boot, dal suo prompt
+`mtd erase boot` e poi reset.
 Lo script cancella l'intera flash, scrive SPL + U-Boot e `rootfs.ubi`, rilegge
 e confronta. Tutti i controlli avvengono **prima** dell'erase.
 
@@ -215,7 +245,13 @@ in una directory a parte:
 ```bash
 make O=output-egare egare_f1c200s_defconfig
 make O=output-egare
+make O=output-egare check
+./docs/flash-nand.sh output-egare/images     # board in FEL
 ```
+
+Ogni comando della EGARE vuole `O=output-egare`, e `flash-nand.sh` vuole
+`output-egare/images`: senza, si lavora sulla build FTVOGUE (e la si scrive
+sulla EGARE, che parte ma senza EEPROM e con metà della NAND).
 
 Dettagli e stato delle prove in [docs/EGARE-F1C200S.md](docs/EGARE-F1C200S.md).
 

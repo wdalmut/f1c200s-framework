@@ -13,6 +13,7 @@
 # interamente mainline, non servono blob ne' tool proprietari.
 #
 # Dopo:  make ftvogue_f1c200s_defconfig && make
+#        (EGARE: make O=output-egare egare_f1c200s_defconfig && make O=output-egare)
 #
 set -euo pipefail
 
@@ -98,6 +99,12 @@ Pronto. Prossimi passi:
 
 Gli artefatti finiscono in output/images/, l'immagine da scrivere sulla SD
 e' sdcard.img.
+
+Per la board EGARE, sempre con O=output-egare:
+
+    make O=output-egare egare_f1c200s_defconfig
+    make O=output-egare
+    make O=output-egare check
 
 Console seriale: UART1 (pin PA2/PA3) -> ttyS0, 115200 8N1.
 
