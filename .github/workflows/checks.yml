@@ -68,12 +68,35 @@ jobs:
             grep -q '^BR2_arm926t=y' "out-$name/.config" \
               || { echo "::error::$name non risolve a BR2_arm926t"; exit 1; }
           done
-          for f in external/board/*/linux.fragment; do
-            grep -q '^# CONFIG_ARCH_MULTI_V7 is not set' "$f" \
-              || { echo "::error::$f non disattiva ARCH_MULTI_V7"; exit 1; }
-            grep -q '^CONFIG_MACH_SUNIV=y' "$f" \
-              || { echo "::error::$f non abilita MACH_SUNIV"; exit 1; }
+          # Per defconfig, non per fragment: una board puo' applicare piu'
+          # fragment (la EGARE mette il suo dopo quello FTVOGUE), e basta che
+          # uno di essi ribalti ARMv7 -> ARMv5.
+          for d in external/configs/*_defconfig; do
+            name="$(basename "$d")"
+            frags="$(sed -n 's/^BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="\(.*\)"$/\1/p' "out-$name/.config")"
+            frags="${frags//\$(BR2_EXTERNAL_F1C200S_PATH)/$PWD/external}"
+            # shellcheck disable=SC2086  # lista separata da spazi, come in Buildroot
+            grep -qx '# CONFIG_ARCH_MULTI_V7 is not set' $frags \
+              || { echo "::error::$name: nessun fragment disattiva ARCH_MULTI_V7"; exit 1; }
+            # shellcheck disable=SC2086
+            grep -qx 'CONFIG_MACH_SUNIV=y' $frags \
+              || { echo "::error::$name: nessun fragment abilita MACH_SUNIV"; exit 1; }
           done
+          echo "ok"
+      - name: i file EGARE copiati da FTVOGUE restano equivalenti
+        # uboot.fragment (riga del bootcmd) e genimage.cfg della EGARE sono
+        # copie di quelli FTVOGUE con un altro DTB. Se uno dei due cambia e
+        # l'altro no, le board divergono in silenzio e il confronto fra le
+        # due non vale piu'.
+        run: |
+          set -euo pipefail
+          f=external/board/ftvogue-f1c200s e=external/board/egare-f1c200s
+          to_ftvogue() { sed 's/suniv-f1c200s-egare\.dtb/suniv-f1c200s-lctech-pi.dtb/g'; }
+          diff <(grep '^CONFIG_BOOTCOMMAND=' "$f/uboot.fragment") \
+               <(grep '^CONFIG_BOOTCOMMAND=' "$e/uboot.fragment" | to_ftvogue) \
+            || { echo "::error::$e/uboot.fragment: il bootcmd diverge da FTVOGUE"; exit 1; }
+          diff "$f/genimage.cfg" <(to_ftvogue < "$e/genimage.cfg") \
+            || { echo "::error::$e/genimage.cfg diverge da FTVOGUE"; exit 1; }
           echo "ok"
       - name: nessun comando SPI NOR nei fragment U-Boot
         # La flash di questa board e' SPI NAND: un 'sf read' nel bootcmd e'
