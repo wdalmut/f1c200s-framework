@@ -158,6 +158,7 @@ make distclean              # cancella output/, .config E ANCHE la cache dl/
 | Aggiungere un package proprio | `external/package/<nome>/{Config.in,<nome>.mk}` + `source` in `external/Config.in` | `make menuconfig` |
 | Cambiare il layout NAND | `CONFIG_SYS_SPI_U_BOOT_OFFS` e `CONFIG_MTDPARTS_DEFAULT` (uboot.fragment), `mtdparts=` nel bootcmd, `docs/flash-nand.sh`, sezione 9 di `check-image.sh` | `make uboot-reconfigure && make` |
 | Toccare le patch SPL | `board/ftvogue-f1c200s/patches/uboot/` | `make uboot-dirclean && make` |
+| Cambiare il DTS EGARE | `board/egare-f1c200s/dts/allwinner/suniv-f1c200s-egare.dts` — Buildroot lo copia nel kernel solo in fase di build: un `make` semplice tiene il DTB vecchio | `make O=output-egare linux-rebuild && make O=output-egare` |
 | Cambiare qualcosa solo per la EGARE | `board/egare-f1c200s/` (DTS, fragment applicati dopo quelli FTVOGUE) | stesso flusso, con `O=output-egare` |
 | Cambiare il `bootcmd` o `genimage.cfg` FTVOGUE | anche la copia in `board/egare-f1c200s/`: la CI controlla che restino uguali a parte il DTB | ricostruire entrambe le board |
 | Bumpare Buildroot | `cd buildroot && git checkout <tag LTS>` + commit del submodule | build completa |

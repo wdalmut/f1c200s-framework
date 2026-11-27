@@ -91,11 +91,14 @@ jobs:
         run: |
           set -euo pipefail
           f=external/board/ftvogue-f1c200s e=external/board/egare-f1c200s
-          to_ftvogue() { sed 's/suniv-f1c200s-egare\.dtb/suniv-f1c200s-lctech-pi.dtb/g'; }
-          diff <(grep '^CONFIG_BOOTCOMMAND=' "$f/uboot.fragment") \
-               <(grep '^CONFIG_BOOTCOMMAND=' "$e/uboot.fragment" | to_ftvogue) \
+          # Si porta FTVOGUE verso EGARE e si confronta con il file EGARE cosi'
+          # com'e': nella direzione opposta un file EGARE rimasto con il DTB
+          # Lctech passerebbe il confronto.
+          to_egare() { sed 's/suniv-f1c200s-lctech-pi\.dtb/suniv-f1c200s-egare.dtb/g'; }
+          diff <(grep '^CONFIG_BOOTCOMMAND=' "$f/uboot.fragment" | to_egare) \
+               <(grep '^CONFIG_BOOTCOMMAND=' "$e/uboot.fragment") \
             || { echo "::error::$e/uboot.fragment: il bootcmd diverge da FTVOGUE"; exit 1; }
-          diff "$f/genimage.cfg" <(to_ftvogue < "$e/genimage.cfg") \
+          diff <(to_egare < "$f/genimage.cfg") "$e/genimage.cfg" \
             || { echo "::error::$e/genimage.cfg diverge da FTVOGUE"; exit 1; }
           echo "ok"
       - name: nessun comando SPI NOR nei fragment U-Boot
