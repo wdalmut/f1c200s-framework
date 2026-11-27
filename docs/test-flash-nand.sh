@@ -13,7 +13,8 @@
 #
 # Il finto xfel simula la NAND con un file per indirizzo di scrittura.
 # FAKE_FAIL=<comando> fa stampare "Can't ..." a quel comando;
-# FAKE_CORRUPT=1 altera un byte in rilettura (bad block non saltato).
+# FAKE_CORRUPT=1 altera un byte in rilettura (bad block non saltato);
+# FAKE_CHIP="'<nome>' with <byte>" cambia la flash riconosciuta.
 #
 set -uo pipefail
 
@@ -32,8 +33,9 @@ nand="$FAKE_NAND"
 [ "$1" = spinand ] || exit 1
 shift
 case "${1:-}" in
-	"")       echo "Found spi nand flash 'GD5F1GQ4xAYIG' with 134217728 bytes" ;;
+	"")       echo "Found spi nand flash ${FAKE_CHIP:-'GD5F1GQ4xAYIG' with 134217728 bytes}" ;;
 	erase)    [ "${FAKE_FAIL:-}" = erase ] && { echo "Can't erase spi nand flash"; exit 0; }
+	          echo "fake-erase $2 $(( $3 ))"
 	          rm -f "$nand"/* ;;
 	write)    [ "${FAKE_FAIL:-}" = write ] && { echo "Can't write spi nand flash"; exit 0; }
 	          cp "$3" "$nand/$(( $2 ))" ;;
@@ -71,6 +73,9 @@ echo
 echo "test-flash-nand"
 echo
 caso "tutto riesce"                    0 "flash-nand: fatto."
+caso "GD5F1G: erase di 128 MiB"        0 "fake-erase 0 134217728"
+caso "W25N02KV: erase di 256 MiB"      0 "fake-erase 0 268435456"     "FAKE_CHIP='W25N02KV' with 268435456 bytes"
+caso "chip sconosciuto rifiutato"      1 "flash inattesa"             "FAKE_CHIP='GD5F4GQ4xA' with 536870912 bytes"
 caso "erase fallisce"                  1 "Can't erase"                FAKE_FAIL=erase
 caso "splwrite fallisce"               1 "Can't write"                FAKE_FAIL=splwrite
 caso "write del rootfs fallisce"       1 "Can't write"                FAKE_FAIL=write

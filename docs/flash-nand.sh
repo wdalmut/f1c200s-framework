@@ -21,7 +21,6 @@ IMAGES="${1:-output/images}"
 UBOOT="$IMAGES/u-boot-sunxi-with-spl.bin"
 ROOTFS="$IMAGES/rootfs.ubi"
 
-NAND_SIZE=0x8000000     # 128 MiB, GD5F1GQ4xA
 UBOOT_AT=0x40000        # splwrite: SPL nei blocchi 0-1, .bin lineare qui
 UBI_AT=0x100000         # partizione MTD "ubi" (mtdparts 1M(boot),-(ubi))
 
@@ -35,16 +34,23 @@ done
 size="$(stat -c %s "$UBOOT")"
 [ $((UBOOT_AT + size)) -le $((UBI_AT)) ] \
 	|| die "$UBOOT ($size B) sfora nella partizione UBI"
-size="$(stat -c %s "$ROOTFS")"
-[ "$size" -le $((NAND_SIZE - UBI_AT)) ] \
-	|| die "$ROOTFS ($size B) non sta nella partizione UBI"
 
 info="$(xfel spinand 2>&1)" || die "nessuna board in FEL: $info"
 echo "$info"
+# Solo chip con pagina 2048 B e blocco 128 KiB: e' la geometria con cui e'
+# costruito rootfs.ubi (BR2_TARGET_ROOTFS_UBI*). Con un'altra pagina l'attach
+# UBI fallirebbe. La dimensione invece si legge da xfel: serve all'erase.
 case "$info" in
-	*"with 134217728 bytes"*) ;;
-	*) die "flash inattesa (attesa SPI NAND da 128 MiB): $info" ;;
+	*"'GD5F1GQ4xAYIG' with "*) ;;   # 128 MiB, la FTVOGUE F1C200S
+	*"'W25N02KV' with "*) ;;        # 256 MiB
+	*) die "flash inattesa (attese GD5F1GQ4xAYIG o W25N02KV): $info" ;;
 esac
+NAND_SIZE="$(sed -n 's/.* with \([0-9][0-9]*\) bytes.*/\1/p' <<<"$info")"
+[ -n "$NAND_SIZE" ] || die "dimensione della flash non letta: $info"
+
+size="$(stat -c %s "$ROOTFS")"
+[ "$size" -le $((NAND_SIZE - UBI_AT)) ] \
+	|| die "$ROOTFS ($size B) non sta nella partizione UBI"
 
 # xfel esce con 0 anche quando erase/write falliscono: stampa soltanto
 # "Can't ...". Quindi si guarda l'output, non l'exit code. Il tee verso
