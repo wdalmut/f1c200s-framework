@@ -34,6 +34,18 @@ Le ragioni dell'organizzazione dei file sono nel
   `0x03`).
 * UBIFS è dimensionato per 256 MiB: `BR2_TARGET_ROOTFS_UBIFS_MAXLEBCNT=2040`
   (sulla FTVOGUE 1016).
+* **Boot da SPI NAND con la build EGARE verificato** (prova su board,
+  2026-11-27): `./docs/flash-nand.sh output-egare/images`, poi senza SD
+  login su `egare-f1c200s` con `ubi0:rootfs` su `/`. `df -h /` dà
+  **221.5M**, il doppio dei 111.8M dell'immagine FTVOGUE: UBIFS usa tutto il
+  chip. Il volume UBI ha circa 1996 LEB da 124 KiB (241.7 MiB); la
+  differenza è l'overhead di UBIFS (indice, journal), nella stessa
+  proporzione della FTVOGUE.
+* Per mandare in FEL una board con un SPL valido in NAND e senza pulsante:
+  dal prompt di U-Boot (`CONFIG_BOOTDELAY=2`) `mtd erase spi-nand0 0
+  0x40000`, cioè i blocchi 0-1 dove la BROM cerca l'SPL; poi accensione
+  senza SD. Rovinare kernel o rootfs non basta: SPL e U-Boot partono
+  comunque.
 
 ### EEPROM ST M24C02-FMN
 
@@ -68,12 +80,6 @@ sudo dd if=output-egare/images/sdcard.img of=/dev/sdX bs=1M conv=fsync status=pr
 
 `make O=output-egare check` controlla anche che i2c0 sia attivo nel DTB, che
 ci sia `eeprom@50` e che il kernel abbia `CONFIG_EEPROM_AT24=y`.
-
-## Da verificare su board
-
-* Boot da SPI NAND con la build EGARE (`boot: NAND`, `ubi0:rootfs` su `/`).
-  Quello con l'immagine FTVOGUE è verificato, vedi sopra.
-* `df -h /` da NAND: attesi circa 230-240 MiB con `MAXLEBCNT=2040`.
 
 ## Lavoro futuro
 
