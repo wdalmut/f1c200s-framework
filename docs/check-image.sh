@@ -30,6 +30,26 @@ echo
 
 [ -d "$IMAGES" ] || { fail "directory non trovata: $IMAGES (hai gia' lanciato 'make'?)"; exit 1; }
 
+# --- 0. quale board ----------------------------------------------------------
+# Il DTB non e' scritto qui: e' l'unico *.dtb in images/, e da lui dipende
+# il resto (FAT, bootcmd, model, /boot). Zero o piu' DTB vuol dire una build
+# configurata male (per esempio INTREE_DTS_NAME rimasto insieme a
+# CUSTOM_DTS_DIR): meglio fermarsi che sceglierne uno a caso.
+dtbs=()
+for f in "$IMAGES"/*.dtb; do [ -f "$f" ] && dtbs+=("$(basename "$f")"); done
+case "${#dtbs[@]}" in
+	1) DTB_NAME="${dtbs[0]}" ;;
+	0) fail "nessun DTB in $IMAGES"; exit 1 ;;
+	*) fail "piu' DTB in $IMAGES: ${dtbs[*]}"; exit 1 ;;
+esac
+case "$DTB_NAME" in
+	suniv-f1c200s-lctech-pi.dtb) MODEL="Lctech Pi F1C200s" ;;
+	suniv-f1c200s-egare.dtb)     MODEL="EGARE F1C200S" ;;
+	*) fail "DTB sconosciuto: $DTB_NAME"; exit 1 ;;
+esac
+echo "  board: $MODEL ($DTB_NAME)"
+echo
+
 # --- 1. header che cerca la BROM --------------------------------------------
 # La BROM dell'F1C200s cerca "eGON.BT0" a offset 8 KiB + 4 byte (i primi 4
 # sono l'istruzione di salto). Se manca, la board ignora la SD in silenzio.
@@ -62,7 +82,7 @@ if [ -f "$IMAGES/boot.vfat" ] && [ -x "$HOSTBIN/mdir" ]; then
 	listing="$(MTOOLS_SKIP_CHECK=1 "$HOSTBIN/mdir" -i "$IMAGES/boot.vfat" :: 2>/dev/null)"
 	echo "$listing" | grep -qi zImage \
 		&& pass "zImage presente nella FAT" || fail "zImage assente dalla FAT"
-	echo "$listing" | grep -qi 'suniv-f1c200s-lctech-pi.dtb' \
+	echo "$listing" | grep -qi "$DTB_NAME" \
 		&& pass "DTB presente nella FAT" || fail "DTB assente dalla FAT"
 else
 	skip "mtools non disponibile: contenuto della FAT non verificato"
@@ -74,6 +94,7 @@ if [ -n "$ucfg" ] && [ -f "$ucfg" ]; then
 	chk() { grep -q "^$1\$" "$ucfg" && pass "u-boot: $1" || fail "u-boot: atteso $1"; }
 	chk 'CONFIG_CONS_INDEX=2'
 	chk 'CONFIG_SUNXI_MINIMUM_DRAM_MB=64'
+	# DT di U-Boot: e' quello Lctech per tutte le board, anche la EGARE.
 	chk 'CONFIG_DEFAULT_DEVICE_TREE="allwinner/suniv-f1c200s-lctech-pi"'
 	chk 'CONFIG_SPL_SPI_SUNXI=y'
 	chk 'CONFIG_SPL_SPI_SUNXI_NAND=y'
@@ -93,6 +114,13 @@ if [ -n "$ucfg" ] && [ -f "$ucfg" ]; then
 	grep -q '^CONFIG_BOOTCOMMAND=.*load mmc 0:1' "$ucfg" \
 		&& pass "u-boot: bootcmd carica da mmc 0:1" \
 		|| fail "u-boot: il bootcmd non carica da mmc 0:1"
+	# Il DTB va caricato in entrambi i rami (SD e NAND). Un fragment che punta
+	# al DTB di un'altra board si scoprirebbe solo con la board che non parte.
+	# grep -o | wc -l e non grep -c: grep -c conta le righe, non le occorrenze.
+	n="$(grep '^CONFIG_BOOTCOMMAND=' "$ucfg" | grep -o "$DTB_NAME" | wc -l)"
+	[ "$n" = 2 ] \
+		&& pass "u-boot: bootcmd carica $DTB_NAME in entrambi i rami" \
+		|| fail "u-boot: $DTB_NAME compare $n volte nel bootcmd invece di 2"
 	grep -q '^CONFIG_BOOTCOMMAND=.*sf read' "$ucfg" \
 		&& fail "u-boot: il bootcmd usa 'sf read' — la flash di questa board e' NAND, non NOR" \
 		|| pass "u-boot: nessun 'sf read' nel bootcmd"
@@ -137,12 +165,12 @@ else
 fi
 
 # --- 7. il DTB e' quello della board -----------------------------------------
-dtb="$IMAGES/suniv-f1c200s-lctech-pi.dtb"
+dtb="$IMAGES/$DTB_NAME"
 if [ -f "$dtb" ] && [ -x "$HOSTBIN/dtc" ]; then
 	model="$("$HOSTBIN/dtc" -I dtb -O dts "$dtb" 2>/dev/null | sed -n 's/.*model = "\(.*\)".*/\1/p' | head -1)"
-	[ "$model" = "Lctech Pi F1C200s" ] \
+	[ "$model" = "$MODEL" ] \
 		&& pass "DTB: model = \"$model\"" \
-		|| fail "DTB: model = \"${model:-?}\" invece di \"Lctech Pi F1C200s\""
+		|| fail "DTB: model = \"${model:-?}\" invece di \"$MODEL\""
 elif [ -f "$dtb" ]; then
 	skip "dtc non disponibile: model del DTB non verificato"
 else
@@ -185,7 +213,7 @@ else
 fi
 
 # --- 10. rootfs.ubi ha la geometria della NAND -------------------------------
-# GD5F1GQ4xA: pagina 2048, niente sub-page. Con -m 2048 -s 2048 l'header EC
+# GD5F1GQ4xA e W25N02KV: pagina 2048, niente sub-page. Con -m 2048 -s 2048 l'header EC
 # dice VID header a 2048 e dati a 4096. Una geometria sbagliata produce
 # un'immagine che ubinize accetta e che il kernel rifiuta all'attach.
 ubi="$IMAGES/rootfs.ubi"
@@ -206,9 +234,31 @@ fi
 
 # --- 11. kernel e DTB nel rootfs, dove li cerca il ramo NAND del bootcmd ----
 tgt="$IMAGES/../target/boot"
-for f in zImage suniv-f1c200s-lctech-pi.dtb; do
+for f in zImage "$DTB_NAME"; do
 	[ -f "$tgt/$f" ] && pass "rootfs: /boot/$f" || fail "rootfs: manca /boot/$f"
 done
+
+# --- 12. EGARE: EEPROM M24C02 su i2c0 ----------------------------------------
+# Il DTS EGARE attiva i2c0 su PE11/PE12 con la EEPROM a 0x50; senza
+# EEPROM_AT24 il nodo c'e' ma /sys/bus/i2c/devices/0-0050/eeprom no.
+if [ "$DTB_NAME" = suniv-f1c200s-egare.dtb ]; then
+	if [ -x "$HOSTBIN/dtc" ]; then
+		i2c0="$("$HOSTBIN/dtc" -I dtb -O dts "$dtb" 2>/dev/null \
+			| sed -n '/i2c@1c27000 {/,/^\t\t};/p')"
+		echo "$i2c0" | grep -q 'status = "okay"' \
+			&& pass "DTB: i2c0 attivo" || fail "DTB: i2c0 non attivo"
+		echo "$i2c0" | grep -q 'eeprom@50 {' \
+			&& pass "DTB: eeprom@50 su i2c0" || fail "DTB: manca eeprom@50 su i2c0"
+	else
+		skip "dtc non disponibile: i2c0 ed EEPROM non verificati"
+	fi
+	if [ -n "$kcfg" ] && [ -f "$kcfg" ]; then
+		grep -q '^CONFIG_EEPROM_AT24=y$' "$kcfg" \
+			&& pass "kernel: CONFIG_EEPROM_AT24=y" || fail "kernel: atteso CONFIG_EEPROM_AT24=y"
+	else
+		skip "config del kernel non trovata: EEPROM_AT24 non verificato"
+	fi
+fi
 
 echo
 [ "$rc" = 0 ] && echo "  tutto a posto." || echo "  ci sono controlli falliti."
