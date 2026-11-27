@@ -32,21 +32,24 @@ container di build.
 ```
 .
 ├── buildroot/                    submodule, Buildroot LTS 2026.02.3
-├── external/                     BR2_EXTERNAL: tutto il codice di questa board
+├── external/                     BR2_EXTERNAL: tutto il codice delle board
 │   ├── external.desc             name: F1C200S
 │   ├── external.mk
 │   ├── Config.in
 │   ├── configs/
-│   │   └── ftvogue_f1c200s_defconfig
-│   └── board/ftvogue-f1c200s/
-│       ├── linux.fragment        opzioni kernel sopra sunxi_defconfig
-│       ├── uboot.fragment        opzioni U-Boot sopra lctech_pi_f1c200s_defconfig
-│       ├── genimage.cfg          layout dell'immagine SD
-│       ├── patches/uboot/        patch SPL per leggere la SPI NAND
-│       └── readme.txt
+│   │   ├── ftvogue_f1c200s_defconfig
+│   │   └── egare_f1c200s_defconfig
+│   ├── board/ftvogue-f1c200s/
+│   │   ├── linux.fragment        opzioni kernel sopra sunxi_defconfig
+│   │   ├── uboot.fragment        opzioni U-Boot sopra lctech_pi_f1c200s_defconfig
+│   │   ├── genimage.cfg          layout dell'immagine SD
+│   │   ├── patches/uboot/        patch SPL per leggere la SPI NAND
+│   │   └── readme.txt
+│   └── board/egare-f1c200s/      seconda board: solo le differenze
 ├── docs/
 │   ├── BOARD-FACTS.md
 │   ├── SCELTE-DI-PROGETTO.md
+│   ├── EGARE-F1C200S.md
 │   ├── check-image.sh            verifica gli artefatti senza avere la board
 │   ├── flash-nand.sh             scrive la SPI NAND via xfel
 │   └── test-flash-nand.sh        prova flash-nand.sh con un xfel finto
@@ -201,6 +204,20 @@ non esce nulla nemmeno così, il problema è il cablaggio seriale.
   un blocco guasto nella zona scritta viene rilevato dalla rilettura, non
   aggirato.
 * **LCD, CSI e audio non sono configurati.**
+
+## Altre board
+
+Il repo costruisce anche la **EGARE F1C200S**, una board con lo stesso SoC,
+W25N02KV da 256 MiB e una EEPROM M24C02 su i2c0. La FTVOGUE resta il
+riferimento; la EGARE applica i suoi file sopra quelli FTVOGUE e si costruisce
+in una directory a parte:
+
+```bash
+make O=output-egare egare_f1c200s_defconfig
+make O=output-egare
+```
+
+Dettagli e stato delle prove in [docs/EGARE-F1C200S.md](docs/EGARE-F1C200S.md).
 
 ## Licenza
 

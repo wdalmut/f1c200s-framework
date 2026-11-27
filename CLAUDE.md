@@ -27,22 +27,31 @@ external/
   external.desc                             name: F1C200S -> $(BR2_EXTERNAL_F1C200S_PATH)
   external.mk                               include dei package propri (ora nessuno)
   Config.in                                 menu Kconfig dell'albero (ora vuoto)
-  configs/ftvogue_f1c200s_defconfig         il defconfig
+  configs/ftvogue_f1c200s_defconfig         il defconfig della board di riferimento
+  configs/egare_f1c200s_defconfig           la EGARE (vedi docs/EGARE-F1C200S.md)
   board/ftvogue-f1c200s/
     linux.fragment                          opzioni kernel sopra sunxi_defconfig
     uboot.fragment                          opzioni U-Boot sopra lctech_pi_f1c200s_defconfig
     genimage.cfg                            layout dell'immagine SD
     patches/uboot/                          patch SPL SPI NAND (serie Icenowy, portata)
     readme.txt
+  board/egare-f1c200s/                      solo le differenze, sopra ftvogue-f1c200s/
+    dts/allwinner/suniv-f1c200s-egare.dts   DTS Lctech + i2c0 PE11/PE12 + EEPROM 0x50
+    linux.fragment                          dopo quello FTVOGUE: EEPROM_AT24
+    uboot.fragment                          dopo quello FTVOGUE: bootcmd con il DTB EGARE
+    genimage.cfg                            copia FTVOGUE con il DTB EGARE
+    readme.txt
 docs/
   BOARD-FACTS.md                            fatti verificati, con le fonti
   SCELTE-DI-PROGETTO.md                     perché è fatto così
+  EGARE-F1C200S.md                          la board EGARE: differenze verificate
   check-image.sh                            verifica gli artefatti (make check)
   flash-nand.sh                             scrive la SPI NAND via xfel
   test-flash-nand.sh                        prova flash-nand.sh con un xfel finto (anche in CI)
 Makefile                                    wrapper su Buildroot
 setup.sh                                    submodule + dipendenze host
 output/                                     generato, in .gitignore
+output-egare/                               idem, build EGARE (O=output-egare)
 ```
 
 Nei defconfig i percorsi si scrivono con `$(BR2_EXTERNAL_F1C200S_PATH)`, mai
@@ -64,7 +73,15 @@ make check                          # verifica gli artefatti prodotti
 ./docs/flash-nand.sh                # board in FEL: scrive SPL, U-Boot e rootfs.ubi in NAND
 make defconfigs                     # elenca i defconfig
 make help
+
+make O=output-egare egare_f1c200s_defconfig   # la EGARE, in un'altra directory
+make O=output-egare                            # ogni comando EGARE vuole O=output-egare
+make O=output-egare check
+./docs/flash-nand.sh output-egare/images
 ```
+
+Senza `O=` si lavora su `output/`, cioè sulla FTVOGUE: un
+`egare_f1c200s_defconfig` lanciato lì sovrascrive la sua configurazione.
 
 Non usare `-jN` sul make di primo livello: Buildroot parallelizza da sé
 (`BR2_JLEVEL`).
@@ -141,7 +158,12 @@ make distclean              # cancella output/, .config E ANCHE la cache dl/
 | Aggiungere un package proprio | `external/package/<nome>/{Config.in,<nome>.mk}` + `source` in `external/Config.in` | `make menuconfig` |
 | Cambiare il layout NAND | `CONFIG_SYS_SPI_U_BOOT_OFFS` e `CONFIG_MTDPARTS_DEFAULT` (uboot.fragment), `mtdparts=` nel bootcmd, `docs/flash-nand.sh`, sezione 9 di `check-image.sh` | `make uboot-reconfigure && make` |
 | Toccare le patch SPL | `board/ftvogue-f1c200s/patches/uboot/` | `make uboot-dirclean && make` |
+| Cambiare qualcosa solo per la EGARE | `board/egare-f1c200s/` (DTS, fragment applicati dopo quelli FTVOGUE) | stesso flusso, con `O=output-egare` |
+| Cambiare il `bootcmd` o `genimage.cfg` FTVOGUE | anche la copia in `board/egare-f1c200s/`: la CI controlla che restino uguali a parte il DTB | ricostruire entrambe le board |
 | Bumpare Buildroot | `cd buildroot && git checkout <tag LTS>` + commit del submodule | build completa |
+
+I fragment e le patch di `board/ftvogue-f1c200s/` valgono **anche per la EGARE**,
+che li applica prima dei suoi: una modifica lì va ricostruita su entrambe.
 
 **Kernel e kernel-headers devono restare allineati.** Ora: `6.12.111` +
 `BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_6_12=y`.
