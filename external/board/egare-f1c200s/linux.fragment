@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2026 Corley S.r.l.
+#
+# Frammento EGARE, applicato DOPO ../ftvogue-f1c200s/linux.fragment: qui
+# solo le differenze. ARMv5, SPI NAND, UBI e il resto vengono da li'.
+
+# EEPROM M24C02 su i2c0 (nodo eeprom@50 nel DTS EGARE). Senza il driver il
+# nodo c'e' ma /sys/bus/i2c/devices/0-0050/eeprom no. Built-in come il
+# resto dei driver della board.
+CONFIG_EEPROM_AT24=y

@@ -2,6 +2,7 @@
 # Copyright (C) 2026 Corley S.r.l.
 # Output di Buildroot: toolchain, sorgenti scaricati, immagini.
 /output/
+/output-*/
 
 # Output dei job di CI eseguiti in locale
 /out-*_defconfig/

@@ -6,6 +6,10 @@
 # `-C buildroot O=... BR2_EXTERNAL=...`.
 #
 #   make ftvogue_f1c200s_defconfig    configura per la board (boot da SD)
+#   make O=output-egare egare_f1c200s_defconfig
+#                                     un'altra board, in un'altra directory:
+#                                     poi `make O=output-egare` e
+#                                     `make O=output-egare check`
 #   make                              costruisce
 #   make savedefconfig                riscrive il defconfig dal .config
 #   make check                        verifica gli artefatti prodotti
@@ -25,6 +29,10 @@
 
 TOPDIR       := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 O            ?= $(TOPDIR)/output
+# O relativo (`make O=output-egare ...`) va risolto qui, dalla radice del
+# repo: passato cosi' com'e' a `make -C buildroot` finirebbe dentro il
+# submodule, in buildroot/output-egare.
+override O   := $(abspath $(O))
 BR2_EXTERNAL := $(TOPDIR)/external
 BUILDROOT    := $(TOPDIR)/buildroot
 

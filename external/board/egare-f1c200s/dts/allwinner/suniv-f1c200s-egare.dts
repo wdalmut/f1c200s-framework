@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 Corley S.r.l.
+//
+// EGARE F1C200S: la Lctech Pi F1C200s piu' le differenze della board.
+// Tutto il resto (UART1, SPI NAND su spi0, mmc0, USB OTG) viene dal DTS
+// Lctech incluso qui sotto: le due board devono restare confrontabili.
+//
+// EEPROM ST M24C02-FMN su i2c0: SCK su PE11 (pin 38 del QFN88), SDA su
+// PE12 (pin 37), E0-E2 a GND -> 0x50. Verificata il 2026-11-27 con un DTB
+// di prova: i2cdump legge 256 byte, i2cset/i2cget scrivono e rileggono.
+
+/dts-v1/;
+#include "suniv-f1c200s-lctech-pi.dts"
+
+/ {
+	model = "EGARE F1C200S";
+};
+
+&pio {
+	/* Il .dtsi definisce i2c0 solo su PD0/PD12. */
+	i2c0_pe_pins: i2c0-pe-pins {
+		pins = "PE11", "PE12";
+		function = "i2c0";
+	};
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pe_pins>;
+	status = "okay";
+
+	eeprom@50 {
+		compatible = "st,24c02", "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+};
