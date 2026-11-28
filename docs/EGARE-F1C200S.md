@@ -150,10 +150,11 @@ U6/U7 comandati da `USB_SEL` (PE4), e le porte della carrier si dividono così
 * **USB-A:** VBUS da `VSYS` (dalla prossima revisione della carrier), sempre
   acceso: `PRTCTL3` del LAN9512 non è collegato e il suo pull-up interno tiene
   la porta senza sovracorrente.
-* Kernel: `USB_HID`, `HID_GENERIC` e `INPUT_EVDEV` ci sono già, quindi
-  tastiere e mouse funzionano senza modifiche; `USB_STORAGE` no.
-  Una tastiera è low-speed: dietro l'hub high-speed passa dal transaction
-  translator del LAN9512, un caso non ancora provato su questa board.
+* **Niente tastiere né mouse**: la MUSB suniv ha due soli slot per gli
+  endpoint interrupt, occupati dall'hub del LAN9512 e da `smsc95xx`
+  (BOARD-FACTS, "USB OTG (MUSB)"). Un dispositivo HID sulla USB-A ottiene
+  `hwep alloc failed`. I dispositivi solo bulk (una chiavetta, con
+  `USB_STORAGE`, che oggi manca nel kernel) dividono EP1 con l'Ethernet.
 
 ### LAN9512 (hub USB + Ethernet 10/100)
 
@@ -167,7 +168,8 @@ U6/U7 comandati da `USB_SEL` (PE4), e le porte della carrier si dividono così
   OTG è quindi solo host, attraverso l'hub.
 * Kernel: `USB_USBNET`, `USB_NET_SMSC95XX`, `SMSC_PHY` (fragment EGARE), più la
   patch della FIFO MUSB descritta in BOARD-FACTS, "USB OTG (MUSB)". Senza la
-  patch il link sale ma non si riceve nulla.
+  patch, o con un layout che usa EP4/EP5, il link sale ma non si riceve nulla,
+  oppure il cambio di link non viene mai notificato.
 * **Verificato** (prova su board, 2026-11-28): hub `1-1` a 3 porte, Ethernet su
   `1-1.1` in high-speed, `Link is Up - 100Mbps/Full`, `ping` al gateway con
   risposta in ~1.2 ms.

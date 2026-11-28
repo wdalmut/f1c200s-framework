@@ -219,23 +219,41 @@ Su suniv U-Boot proper non conosce la sorgente di boot (header SPL in SRAM
 sovrascritto dai vettori): la scelta SD/NAND nel `bootcmd` si basa su
 `test -e mmc 0:1 zImage`.
 
-## USB OTG (MUSB): FIFO da 4 KiB
+## USB OTG (MUSB): solo EP1-EP3, FIFO da 4 KiB
 
 La FIFO della MUSB è la SRAM D, **4 KiB** (`sram_d`, `reg = <0x10000 0x1000>`
 in `suniv-f1c100s.dtsi`). Il driver `musb/sunxi.c` di Linux 6.12.111 usa per
 suniv il layout a 5 endpoint da 512 byte con `ram_bits = 11`: 5184 byte su 4096.
-Gli endpoint oltre 4 KiB non funzionano, in silenzio. Trovato in host mode
-dietro l'hub LAN9512 della EGARE (2026-11-28): il bulk-in di `smsc95xx` finiva
-su EP4 RX (3648..4159) e non si completava mai, mentre controllo, bulk-out e
-interrupt-in (tutti sotto 4 KiB) funzionavano. Sintomo: link su, `tx_packets`
-che sale, `rx_packets` e `rx_errors` a 0, la RX FIFO del LAN9512 che si riempie.
+Sulla dimensione il datasheet tace, ma gli esempi di codice usano almeno
+4 KiB ([tinyusb #1220](https://github.com/hathach/tinyusb/pull/1220)).
+
+Oltre alla dimensione, **funzionano solo EP1, EP2 ed EP3** (più ep0): i
+trasferimenti messi su EP4 o EP5 non si completano mai, in silenzio, a
+qualunque offset della FIFO. Il datasheet F1C200s (sezione "USB 2.0 OTG") non
+dice quanti endpoint ci sono. Trovato in host mode dietro l'hub LAN9512 della
+EGARE (2026-11-28), con tre layout:
+
+| Layout | Su EP4/EP5 | Risultato |
+|---|---|---|
+| 5 × 512 (upstream) | bulk-in `smsc95xx` su EP4 RX (3648) | link su, `tx_packets` sale, `rx_packets` a 0 |
+| 3 × 512 + 2 × 64 | interrupt-in di hub e `smsc95xx` su EP4/EP5 (3200, 3328) | IRQ "phy" a 0: `Link is Up` solo se il link c'era già all'apertura; cavo staccato/riattaccato mai visto |
+| 512, 64, 64, 512, 64 | bulk `smsc95xx` su EP4 (1344..2367) | `tx_packets` e `rx_packets` a 0 |
+
+Negli stessi layout EP2/EP3 funzionavano, anche agli stessi offset.
 
 Correzione: `patches/linux/0001-usb-musb-sunxi-fit-the-suniv-FIFO-layout-in-4-KiB.patch`,
-tre coppie da 512 byte per il bulk e due da 64 per gli interrupt (3392 byte).
-Vale per entrambe le board; `make check` (sezione 8b) controlla che sia
-applicata. Fonte sulla dimensione: il datasheet dichiara 2 KiB, ma gli esempi
-di codice usano almeno 4 KiB ([tinyusb #1220](https://github.com/hathach/tinyusb/pull/1220)),
-e gli endpoint fino a 3135 byte funzionano.
+tre endpoint: EP1 512 + 512 (il `bulk_ep` della MUSB: ogni endpoint bulk
+viene multiplexato lì) ed EP2/EP3 64 + 64 per gli interrupt, 1344 byte.
+**Verificato** (2026-11-28, EGARE): `Link is Up` al boot con DHCP, cavo
+staccato e riattaccato visto (IRQ "phy" che sale), traffico in entrambe le
+direzioni. Vale per entrambe le board; `make check` (sezione 8b) controlla
+che sia applicata e che non usi EP4/EP5.
+
+Conseguenza: gli slot interrupt (periodici) sono **due**, e la MUSB non li
+condivide. Sulla EGARE li occupano l'hub del LAN9512 e `smsc95xx`: un terzo
+dispositivo con un endpoint interrupt (tastiera, mouse) ottiene
+`hwep alloc failed` e non funziona. Il bulk invece si condivide: una chiavetta
+divide EP1 con l'Ethernet.
 
 ## Aperti
 

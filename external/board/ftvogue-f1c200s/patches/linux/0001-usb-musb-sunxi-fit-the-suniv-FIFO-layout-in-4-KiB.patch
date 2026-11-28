@@ -2,39 +2,42 @@ From: f1c200s-framework <noreply@localhost>
 Subject: [PATCH] usb: musb: sunxi: fit the suniv FIFO layout in 4 KiB
 
 The F1C100s/F1C200s OTG FIFO is SRAM D, 4 KiB, but suniv uses the 5eps
-layout (64 + 10 * 512 = 5184 bytes) with ram_bits = 11 (8 KiB). Endpoints
-placed past 4 KiB do not work: in host mode behind a LAN9512 hub the
-smsc95xx bulk-in lands on EP4 RX (3648..4159) and never completes, while
-control, bulk-out and interrupt-in (all below 4 KiB) work.
+layout (64 + 10 * 512 = 5184 bytes) with ram_bits = 11 (8 KiB). Moreover
+only EP1..EP3 work: in host mode behind a LAN9512 hub, transfers scheduled
+on EP4 or EP5 never complete, at any FIFO offset (smsc95xx bulk-in on EP4
+RX, then the hub and smsc95xx interrupt-in on EP4/EP5, then the smsc95xx
+bulk endpoints on EP4 at 1344..2367), while EP2/EP3 work at the same
+offsets.
 
-Give suniv its own layout: three 512-byte pairs for bulk, two 64-byte
-pairs that musb_schedule() picks for interrupt endpoints, 3392 bytes.
+Give suniv its own layout with three endpoints: EP1 512-byte pair (musb's
+bulk_ep, bulk endpoints are multiplexed on it) and two 64-byte pairs for
+the two periodic slots, 1344 bytes.
 
 ---
---- a/drivers/usb/musb/sunxi.c	2026-11-28 08:09:17.747727921 +0100
-+++ b/drivers/usb/musb/sunxi.c	2026-11-28 08:09:17.759497301 +0100
+--- a/drivers/usb/musb/sunxi.c	2026-11-28 14:23:37.104500238 +0100
++++ b/drivers/usb/musb/sunxi.c	2026-11-28 14:23:47.092852222 +0100
 @@ -674,6 +674,37 @@
  	.ram_bits	= SUNXI_MUSB_RAM_BITS,
  };
  
 +/*
-+ * F1C100s/F1C200s (suniv): the OTG FIFO is SRAM D, 4 KiB (see
-+ * suniv-f1c100s.dtsi). The 5eps layout needs 64 + 10 * 512 = 5184 bytes:
-+ * EP4 RX straddles the end of the RAM and EP5 lies past it, so a bulk-in
-+ * scheduled there never completes. Keep three 512-byte pairs for bulk and
-+ * two 64-byte pairs for interrupt endpoints: 64 + 6 * 512 + 4 * 64 = 3392.
++ * F1C100s/F1C200s (suniv): only EP1..EP3 work besides ep0. In host mode
++ * behind the EGARE LAN9512 hub, transfers scheduled on EP4 or EP5 never
++ * complete, whatever their FIFO offset (bulk-in at 3648, interrupt-in at
++ * 3200 and 3328, bulk at 1344..2367 all fail; EP2/EP3 work at the same
++ * offsets). The 5eps layout also overflows the 4 KiB SRAM D (5184 bytes).
++ *
++ * EP1 is musb's bulk_ep: every bulk endpoint is multiplexed on it. EP2 and
++ * EP3 are the two periodic slots, taken by the hub's status endpoint and
++ * the smsc95xx interrupt endpoint: 64 + 2 * 512 + 4 * 64 = 1344 bytes.
 + */
 +static struct musb_fifo_cfg sunxi_musb_mode_cfg_suniv[] = {
 +	MUSB_EP_FIFO_SINGLE(1, FIFO_TX, 512),
 +	MUSB_EP_FIFO_SINGLE(1, FIFO_RX, 512),
-+	MUSB_EP_FIFO_SINGLE(2, FIFO_TX, 512),
-+	MUSB_EP_FIFO_SINGLE(2, FIFO_RX, 512),
-+	MUSB_EP_FIFO_SINGLE(3, FIFO_TX, 512),
-+	MUSB_EP_FIFO_SINGLE(3, FIFO_RX, 512),
-+	MUSB_EP_FIFO_SINGLE(4, FIFO_TX, 64),
-+	MUSB_EP_FIFO_SINGLE(4, FIFO_RX, 64),
-+	MUSB_EP_FIFO_SINGLE(5, FIFO_TX, 64),
-+	MUSB_EP_FIFO_SINGLE(5, FIFO_RX, 64),
++	MUSB_EP_FIFO_SINGLE(2, FIFO_TX, 64),
++	MUSB_EP_FIFO_SINGLE(2, FIFO_RX, 64),
++	MUSB_EP_FIFO_SINGLE(3, FIFO_TX, 64),
++	MUSB_EP_FIFO_SINGLE(3, FIFO_RX, 64),
 +};
 +
 +static const struct musb_hdrc_config sunxi_musb_hdrc_config_suniv = {

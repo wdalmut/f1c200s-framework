@@ -35,7 +35,7 @@ external/
     uboot.fragment                          opzioni U-Boot sopra lctech_pi_f1c200s_defconfig
     genimage.cfg                            layout dell'immagine SD
     patches/uboot/                          patch SPL SPI NAND (serie Icenowy, portata)
-    patches/linux/                          FIFO MUSB suniv entro 4 KiB (RX USB in host)
+    patches/linux/                          FIFO MUSB suniv: solo EP1-EP3, entro 4 KiB
     readme.txt
   board/egare-f1c200s/                      solo le differenze, sopra ftvogue-f1c200s/
     dts/allwinner/suniv-f1c200s-egare.dts   DTS Lctech + i2c0 PE11/PE12 + EEPROM 0x50 + USB host/PE4
@@ -242,7 +242,10 @@ rompe in silenzio senza bisogno di artefatti.
 | `flash-nand: rilettura diversa` | bad block nella zona scritta: xfel non li salta (vedi BOARD-FACTS, "Layout SPI NAND") |
 | `ubi part ubi` / attach UBI fallisce | flash non cancellata per intero, o geometria UBI errata (sezione 10 di check) |
 | `boot: SD` senza SD avviabile | SD non avviabile ma con la nostra FAT inserita |
-| EGARE: `eth0` link su, `tx_packets` sale, `rx_packets` e `rx_errors` fermi a 0 | FIFO MUSB oltre 4 KiB: `patches/linux/0001-*` non applicata (sezione 8b di check) |
+| EGARE: `eth0` link su, `tx_packets` sale, `rx_packets` e `rx_errors` fermi a 0 | layout FIFO MUSB upstream: `patches/linux/0001-*` non applicata (sezione 8b di check) |
+| EGARE: `eth0` resta `Link is Down` col cavo collegato, IRQ `smsc95xx ... phy` a 0 in `/proc/interrupts` | interrupt USB su EP4/EP5 della MUSB, che non funzionano: layout di `patches/linux/0001-*` (BOARD-FACTS, sezione 8b di check) |
+| EGARE: link su ma `tx_packets` e `rx_packets` a 0 | bulk su EP4/EP5 della MUSB: come sopra |
+| EGARE: tastiera/mouse sulla USB-A, `hwep alloc failed` | normale: la MUSB suniv ha due slot interrupt, già usati da hub ed Ethernet |
 | EGARE: `lsusb` vede solo il root hub | PE4 (`USB_SEL`) basso o MUSB non in host: hog e `dr_mode` nel DTS EGARE |
 | EGARE: `eth0` con MAC casuale, diverso a ogni avvio | EEPROM vergine o slot ETH0 non valido (`som-id show`), oppure `nvmem-cells`/alias `ethernet0` mancanti nel DTB (sezione 12 di check) |
 | `som-id: write rejected by the EEPROM` o `read-back differs` | pin WP dell'EEPROM alto (docs/EEPROM-ID.md) |

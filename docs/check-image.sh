@@ -237,6 +237,16 @@ if [ -n "$musbc" ] && [ -f "$musbc" ]; then
 	grep -A1 'suniv_f1c100s_musb_cfg = {' "$musbc" | grep -q 'sunxi_musb_hdrc_config_suniv' \
 		&& pass "kernel: FIFO MUSB suniv entro 4 KiB (patch linux applicata)" \
 		|| fail "kernel: FIFO MUSB suniv a 5 endpoint da 512 — patch linux non applicata?"
+	# EP4 ed EP5 della MUSB suniv non completano nessun trasferimento: con
+	# interrupt li' il cambio di link non arriva mai, con bulk li' non passa
+	# traffico (BOARD-FACTS, "USB OTG (MUSB)").
+	eps="$(sed -n '/^static struct musb_fifo_cfg sunxi_musb_mode_cfg_suniv\[\] = {/,/^};/p' "$musbc" \
+		| sed -n 's/.*MUSB_EP_FIFO_SINGLE(\([0-9]*\),.*/\1/p' | sort -un | tr '\n' ' ')"
+	case "$eps" in
+		'') ;;	# gia' segnalato sopra: layout suniv assente
+		*[4-9]*) fail "kernel: FIFO MUSB suniv usa EP ${eps% }: solo EP1-EP3 funzionano" ;;
+		*) pass "kernel: FIFO MUSB suniv solo su EP ${eps% }" ;;
+	esac
 else
 	skip "sorgenti del kernel non trovati: FIFO MUSB non verificata"
 fi
