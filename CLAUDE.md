@@ -244,5 +244,5 @@ rompe in silenzio senza bisogno di artefatti.
 | `boot: SD` senza SD avviabile | SD non avviabile ma con la nostra FAT inserita |
 | EGARE: `eth0` link su, `tx_packets` sale, `rx_packets` e `rx_errors` fermi a 0 | FIFO MUSB oltre 4 KiB: `patches/linux/0001-*` non applicata (sezione 8b di check) |
 | EGARE: `lsusb` vede solo il root hub | PE4 (`USB_SEL`) basso o MUSB non in host: hog e `dr_mode` nel DTS EGARE |
-| `som-id: write rejected by the EEPROM` | pin WP dell'M24C02 alto (docs/EEPROM-ID.md) |
+| `som-id: write rejected by the EEPROM` o `read-back differs` | pin WP dell'EEPROM alto (docs/EEPROM-ID.md) |
 | `rootfs: manca /boot/zImage` in `make check` | `BR2_LINUX_KERNEL_INSTALL_TARGET` attivato dopo la build del kernel: `make linux-reinstall && make` |

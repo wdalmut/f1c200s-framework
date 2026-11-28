@@ -327,7 +327,8 @@ if [ "$DTB_NAME" = suniv-f1c200s-egare.dtb ]; then
 					&& fail "DTB: la cella $name e' referenziata (nvmem-cells verso un MAC)" ;;
 			esac
 		done
-		echo "$eeprom" | grep -qE '^\t\t\t\t(read-only|wp-gpios)' \
+		# $'...': GNU grep non interpreta \t nelle ERE
+		echo "$eeprom" | grep -qE $'^\t\t\t\t(read-only|wp-gpios)[ ;]' \
 			&& fail "DTB: eeprom@50 con read-only o wp-gpios" \
 			|| pass "DTB: eeprom@50 scrivibile da Linux (niente read-only, niente wp-gpios)"
 	else

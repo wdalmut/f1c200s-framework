@@ -44,8 +44,8 @@ EEPROM di identificazione (schema v1.0, docs/EEPROM-ID.md):
 
   som-id show
   som-id write --product 0x0001 --rev 1 --ram 64 \
-    --serial "$(som-id serial MA264800017)" --mac0 00:11:22:33:44:55
-  som-id verify
+    --serial "$(som-id serial MA264800017)" --mac0 02:00:00:00:00:01 --allow-local
+  som-id verify --allow-local
   hexdump -C /sys/bus/i2c/devices/0-0050/eeprom
 
 GPIO del connettore (libgpiod):

@@ -47,8 +47,8 @@ Sulla board, in console:
 som-id show                    # status=blank su un'EEPROM vergine
 som-id write --product 0x0001 --rev 1 --ram 64 \
   --serial "$(som-id serial MA264800017)" \
-  --mac0 00:11:22:33:44:55
-som-id verify; echo $?         # 0 = record valido
+  --mac0 02:00:00:00:00:01 --allow-local
+som-id verify --allow-local; echo $?   # 0 = record valido
 ```
 
 - `write` rifiuta di sovrascrivere un'EEPROM non vergine senza `--force`, e
@@ -56,8 +56,14 @@ som-id verify; echo $?         # 0 = record valido
 - `verify` esce con 0 solo se il record è valido. Un MAC con il bit "locally
   administered" (prototipi) passa solo con `--allow-local`: la stazione di
   collaudo non lo passa.
-- Se `write` dice `write rejected by the EEPROM`, il primo sospetto è il pin
-  WP alto.
+- Nell'esempio il MAC è un indirizzo di prototipo ("locally administered"),
+  per questo serve `--allow-local`. In produzione l'indirizzo viene dal
+  blocco IEEE e `--allow-local` non si usa.
+- I numeri sono decimali (gli zeri iniziali non li rendono ottali) o
+  esadecimali con `0x`.
+- Se `write` dice `write rejected by the EEPROM` o `read-back differs`, il
+  primo sospetto è il pin WP alto: alcune 24Cxx rifiutano la scrittura,
+  altre la accettano e la scartano.
 - Formato dell'output, codici d'uscita e opzioni: README della repo
   `som-id`.
 
