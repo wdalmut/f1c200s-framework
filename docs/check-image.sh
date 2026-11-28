@@ -464,6 +464,29 @@ if [ "$DTB_NAME" = suniv-f1c200s-egare.dtb ]; then
 	else
 		skip "config del kernel non trovata: smsc95xx non verificato"
 	fi
+
+	# --- 13b. EGARE: DHCP su eth0 e ntpd all'avvio ---------------------------
+	# Senza RTC l'ora riparte dal 1970: senza ntpd i certificati TLS risultano
+	# "not yet valid". /etc/network/interfaces lo scrive ifupdown-scripts da
+	# BR2_SYSTEM_DHCP; ntpd e' un applet BusyBox (busybox.fragment EGARE) e
+	# senza applet S49ntpd fallisce a ogni avvio senza che la build lo dica.
+	tgt="$IMAGES/../target"
+	ifc="$tgt/etc/network/interfaces"
+	grep -qx 'auto eth0' "$ifc" 2>/dev/null && grep -qx 'iface eth0 inet dhcp' "$ifc" \
+		&& pass "rootfs: eth0 in DHCP all'avvio (/etc/network/interfaces)" \
+		|| fail "rootfs: eth0 non in DHCP in /etc/network/interfaces (BR2_SYSTEM_DHCP)"
+	[ -e "$tgt/usr/sbin/ntpd" ] \
+		&& pass "rootfs: /usr/sbin/ntpd" || fail "rootfs: manca /usr/sbin/ntpd (CONFIG_NTPD nel busybox.fragment)"
+	[ -x "$tgt/etc/init.d/S49ntpd" ] \
+		&& pass "rootfs: /etc/init.d/S49ntpd" || fail "rootfs: manca /etc/init.d/S49ntpd eseguibile"
+	# Senza l'hook, con il cavo inserito dopo il boot ntpd riprova il DNS
+	# solo dopo minuti (attese crescenti fino a 252 s).
+	[ -x "$tgt/usr/share/udhcpc/default.script.d/ntpd" ] \
+		&& pass "rootfs: hook udhcpc che riavvia ntpd sul lease" \
+		|| fail "rootfs: manca /usr/share/udhcpc/default.script.d/ntpd eseguibile"
+	grep -qE '^[[:space:]]*server[[:space:]]+[^[:space:]]' "$tgt/etc/ntp.conf" 2>/dev/null \
+		&& pass "rootfs: /etc/ntp.conf con almeno un server" \
+		|| fail "rootfs: /etc/ntp.conf assente o senza righe server"
 fi
 
 echo

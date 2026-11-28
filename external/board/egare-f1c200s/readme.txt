@@ -54,8 +54,13 @@ GPIO del connettore (libgpiod):
   gpioinfo
   gpioset -c gpiochip0 GPIO3=1
 
-Ethernet (LAN9512, MAC casuale a ogni avvio):
+Ethernet (LAN9512, MAC dall'EEPROM): in DHCP da solo all'avvio
+(S40network, /etc/network/interfaces). Ora da NTP (ntpd di BusyBox,
+S49ntpd, server in /etc/ntp.conf); senza RTC riparte dal 1970.
 
-  udhcpc -i eth0
+  ip a show eth0
+  ifdown eth0 && ifup eth0
+  ntpd -d -n -q          # una sincronizzazione a mano, verbosa
+  date
 
 Fatti verificati e stato delle prove: docs/EGARE-F1C200S.md.

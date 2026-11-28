@@ -140,3 +140,17 @@ produzione. U-Boot leggerà il record quando servirà a lui (SPL con più
 configurazioni DDR, carrier). Design:
 [superpowers/specs/2026-11-28-eeprom-id-design.md](superpowers/specs/2026-11-28-eeprom-id-design.md)
 e [superpowers/specs/2026-11-28-eeprom-mac-nvmem-design.md](superpowers/specs/2026-11-28-eeprom-mac-nvmem-design.md).
+
+## EGARE: DHCP di Buildroot e `ntpd` di BusyBox
+
+Per la rete basta `BR2_SYSTEM_DHCP`: ifupdown e `udhcpc` di BusyBox ci sono
+già, e le opzioni con cui Buildroot compila `udhcpc` (`-b`) non bloccano il
+boot senza cavo. `dhcpcd` o `connman` porterebbero il riconoscimento del
+cavo collegato e scollegato, che oggi non serve.
+
+Per l'ora si usa `ntpd` di BusyBox invece di `ntp` o `chrony`: due righe in un
+fragment, nessun pacchetto in più, e basta un client che a ogni avvio salti
+dal 1970 all'ora corrente, perché la SoM non ha un RTC da disciplinare. Le
+cose che mancano (server NTP presi dal DHCP con l'opzione 42, statistiche) si
+aggiungono passando a `chrony` quando serviranno. Il fragment e l'overlay
+stanno sotto `board/egare-f1c200s/`: la FTVOGUE non ha rete.

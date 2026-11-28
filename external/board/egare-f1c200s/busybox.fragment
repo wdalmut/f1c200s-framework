@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2026 Corley S.r.l.
+#
+# Frammento EGARE sopra package/busybox/busybox.config di Buildroot.
+#
+# ntpd di BusyBox: la SoM non ha un RTC (il DTS suniv non ne dichiara uno),
+# quindi a ogni avvio l'ora riparte dal 1970 e va presa dalla rete. I server
+# stanno in /etc/ntp.conf (rootfs_overlay), avviato da /etc/init.d/S49ntpd.
+CONFIG_NTPD=y
+CONFIG_FEATURE_NTPD_CONF=y

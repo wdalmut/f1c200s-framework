@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+# Hook di udhcpc (lo chiama /usr/share/udhcpc/default.script con l'evento
+# come $1). Con un nuovo lease riavvia ntpd, se gia' in esecuzione: partito
+# senza rete, ntpd ritenta il DNS dei server con attese crescenti fino a
+# 252 s, e con il cavo inserito dopo il boot l'ora resterebbe al 1970 per
+# minuti. Se ntpd non e' ancora partito ci pensa S49ntpd, a rete pronta.
+
+[ "$1" = bound ] || exit 0
+start-stop-daemon --stop --test --quiet --pidfile /var/run/ntpd.pid \
+	--exec /usr/sbin/ntpd || exit 0
+/etc/init.d/S49ntpd restart >/dev/null 2>&1
+exit 0

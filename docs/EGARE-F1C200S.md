@@ -215,6 +215,39 @@ tabelle 2-3, 2-6) e con lo schema Mavis, dove lo stesso circuito funziona.
   TEST2 (**34**) a VSS, TEST3 (40) a VDD33IO. Nel simbolo sembra esserci
   "TEST2 33", e il pin 33 è VDD33IO.
 
+## Rete e ora all'avvio
+
+* **DHCP su `eth0`**: `BR2_SYSTEM_DHCP="eth0"` nel defconfig EGARE. Buildroot
+  scrive in `/etc/network/interfaces` lo stanza `iface eth0 inet dhcp` con
+  `wait-delay 15`, e `S40network` lo porta su con `ifup -a`. Il `wait-delay`
+  serve perché `eth0` è il LAN9512 su USB e compare solo dopo l'enumerazione
+  dell'hub (a circa 2,4 s, vedi sopra). `udhcpc` parte con le opzioni di
+  BusyBox in Buildroot (`-t1 -A3 -b`): senza risposta va in background e
+  ritenta ogni 3 s, quindi il boot non si blocca senza cavo e l'indirizzo
+  arriva quando il cavo viene collegato. DNS in `/etc/resolv.conf`
+  (link a `/run/resolv.conf`), scritto da `udhcpc`.
+* **Ora con NTP**: `ntpd` di BusyBox (`busybox.fragment` EGARE:
+  `CONFIG_NTPD`, `CONFIG_FEATURE_NTPD_CONF`), avviato da `S49ntpd`
+  (`rootfs_overlay/`) dopo la rete. Server in `/etc/ntp.conf`
+  (`N.pool.ntp.org`); opzioni aggiuntive in `/etc/default/ntpd`
+  (`NTPD_ARGS`). Se il DNS non risponde `ntpd` ritenta da solo, ma con attese
+  crescenti fino a 252 s: con il cavo inserito dopo il boot l'ora resterebbe
+  al 1970 per minuti. Per questo un hook di `udhcpc`
+  (`/usr/share/udhcpc/default.script.d/ntpd`) riavvia `ntpd` a ogni nuovo
+  lease, se è già in esecuzione.
+* **Senza RTC**: il DT suniv non dichiara un RTC, `/dev/rtc0` non esiste e
+  l'ora riparte dal 1970 a ogni avvio. Il primo scarto (oltre 1 s) `ntpd` lo
+  corregge con un salto. Finché non è sincronizzata, TLS rifiuta i
+  certificati come "not yet valid".
+* Il fuso è UTC (nessun `BR2_TARGET_TZ_INFO`).
+* **Verificato** (prova su board, 2026-11-28, avvio da SD, cavo collegato):
+  `Link is Up` a 4 s, il primo DISCOVER parte a link giù e va perso, il
+  secondo prende il lease; `date` corretta dopo pochi secondi; cavo staccato e
+  riattaccato: `Link is Down`/`Link is Up` e l'indirizzo resta. Boot senza
+  cavo e cavo inserito a 22 s: `NO-CARRIER`, poi lease subito dopo il link;
+  l'ora restava al 1970 (attesa DNS di `ntpd`), da cui l'hook. Con l'hook
+  (stessa prova, cavo a 15 s): `date` corretta appena arriva il lease.
+
 ## Build e flash
 
 Sempre con `O=output-egare`: senza, si sovrascrive la build FTVOGUE in
