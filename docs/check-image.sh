@@ -326,22 +326,34 @@ if [ "$DTB_NAME" = suniv-f1c200s-egare.dtb ]; then
 		skip "dtc non disponibile: pin di uart1 non verificati"
 	fi
 
-	# --- 12c. EGARE: UART2 del connettore su PD13/PD14 ---------------------
-	# uart2 e' disabilitata nel .dtsi: senza il nodo EGARE ttyS2 non esiste.
+	# --- 12c. EGARE: bus del connettore -----------------------------------
+	# Per ogni bus: alias (numero in Linux = numero del connettore, tranne
+	# SPI0 che e' spi1), nodo attivo, pin. I nodi sono disabilitati nel
+	# .dtsi: senza il DTS EGARE il bus non esiste e nessuno se ne accorge.
+	bus_chk() {	# $1 = alias, $2 = nodo, $3 = pin attesi, $4 = etichetta
+		local node ph pins
+		echo "$dts" | grep -q "^[[:space:]]*$1 = \"/soc/$2\";" \
+			&& pass "DTB: $1 = $2 ($4)" || fail "DTB: $1 non punta a $2 ($4)"
+		node="$(echo "$dts" | sed -n "/$2 {/,/^\t\t};/p")"
+		echo "$node" | grep -q 'status = "okay"' \
+			&& pass "DTB: $2 attivo" || fail "DTB: $2 non attivo"
+		ph="$(echo "$node" | sed -n 's/.*pinctrl-0 = <\(0x[0-9a-f]*\)>;.*/\1/p')"
+		pins="$(echo "$dts" | grep -B3 "phandle = <${ph:-none}>;" | sed -n 's/.*pins = \(.*\);/\1/p')"
+		[ "$pins" = "$3" ] \
+			&& pass "DTB: $2 su $3" || fail "DTB: $2 su ${pins:-?} invece di $3"
+	}
 	if [ -x "$HOSTBIN/dtc" ]; then
 		dts="$("$HOSTBIN/dtc" -I dtb -O dts "$dtb" 2>/dev/null)"
-		uart2="$(echo "$dts" | sed -n '/serial@1c25800 {/,/^\t\t};/p')"
-		echo "$dts" | grep -q 'serial2 = "/soc/serial@1c25800";' \
-			&& pass "DTB: serial2 = uart2" || fail "DTB: serial2 non punta a uart2"
-		echo "$uart2" | grep -q 'status = "okay"' \
-			&& pass "DTB: uart2 attiva" || fail "DTB: uart2 non attiva"
-		ph="$(echo "$uart2" | sed -n 's/.*pinctrl-0 = <\(0x[0-9a-f]*\)>;.*/\1/p')"
-		pins="$(echo "$dts" | grep -B3 "phandle = <${ph:-none}>;" | sed -n 's/.*pins = \(.*\);/\1/p')"
-		[ "$pins" = '"PD13", "PD14"' ] \
-			&& pass "DTB: uart2 su PD13/PD14" \
-			|| fail "DTB: uart2 su ${pins:-?} invece di PD13/PD14"
+		bus_chk serial2 serial@1c25800 '"PD13", "PD14"' 'UART2 del connettore'
+		bus_chk i2c1 i2c@1c27400 '"PD5", "PD6"' 'I2C1 del connettore'
+		bus_chk i2c2 i2c@1c27800 '"PD15", "PD16"' 'I2C2 del connettore'
+		bus_chk spi1 spi@1c06000 '"PE7", "PE8", "PE9", "PE10"' 'SPI0 del connettore'
+		# La NAND deve restare il bus 0: i bootargs dicono mtdparts=spi0.0.
+		echo "$dts" | grep -q '^[[:space:]]*spi0 = "/soc/spi@1c05000";' \
+			&& pass "DTB: spi0 = spi@1c05000 (SPI NAND, mtdparts=spi0.0)" \
+			|| fail "DTB: spi0 non punta alla SPI NAND: mtdparts=spi0.0 rischia di non trovarla"
 	else
-		skip "dtc non disponibile: uart2 non verificata"
+		skip "dtc non disponibile: bus del connettore non verificati"
 	fi
 
 	# --- 13. EGARE: LAN9512 dietro la MUSB ----------------------------------

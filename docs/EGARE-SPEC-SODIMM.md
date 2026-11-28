@@ -29,11 +29,13 @@ Stato: 2026-11-28.
 Dal DTS Lctech: SPI NAND su spi0 (PC0-PC3), mmc0, uart1, MUSB, PHY USB.
 Dal DTS EGARE: i2c0 su PE11/PE12 con l'EEPROM a 0x50, l'hog di `USB_SEL`
 (PE4), la MUSB in host e, dal 2026-11-28, le tre UART: console su uart0 (vedi
-sotto), uart1 con RTS/CTS, uart2 su PD13/PD14. Gli alias `serial0..2`
-seguono i numeri del connettore: `ttyS0..2`.
+sotto), uart1 con RTS/CTS, uart2 su PD13/PD14; i2c1 e i2c2; spi1. Gli alias
+`serial0..2` e `i2c0..2` seguono i numeri del connettore (`ttyS0..2`,
+`/dev/i2c-0..2`); `spi0`/`spi1` fissano la NAND sul bus 0.
 
-Fra i bus che la SoM porta al connettore, quelli descritti sono I2C0 e le tre
-UART: UART0 (console), UART1 (con RTS/CTS) e UART2.
+Fra i bus che la SoM porta al connettore, quelli descritti sono le tre UART
+(UART0 console, UART1 con RTS/CTS, UART2), i tre I2C e SPI0. Mancano PWM0,
+i nomi dei GPIO e il card detect di SD0.
 
 ## Mappa connettore → SoC → DT
 
@@ -43,9 +45,9 @@ UART: UART0 (console), UART1 (con RTS/CTS) e UART2.
 | UART1 + RTS/CTS (RS-485) | 180-186 | uart1, PA2/PA3 + PA0 (RTS) / PA1 (CTS) | ✅ PA0-PA3, `uart-has-rtscts` (2026-11-28) | prova su board; RS-485 nel DT della carrier che monta il transceiver |
 | UART2 | 190/192 | uart2, PD13 (TX) / PD14 (RX) | ✅ `ttyS2` (2026-11-28) | prova su board |
 | I2C0 + EEPROM | 211/213 | i2c0, PE11/PE12 | ✅ | layout nvmem dei 64 byte (seriale, MAC) |
-| I2C1 (touch) | 170/172 | i2c1, PD5/PD6 | manca | gruppo `i2c1` + `&i2c1` |
-| I2C2 (camera) | 174/176 | i2c2, PD15/PD16 | manca | gruppo `i2c2` + `&i2c2` |
-| SPI0 | 148-154 | **spi1**, PE7 (CS) / PE8 (MOSI) / PE9 (CLK) / PE10 (MISO) | manca | gruppo `spi1` + `&spi1` |
+| I2C1 (touch) | 170/172 | i2c1, PD5 (SCK) / PD6 (SDA), pull-up R26/R17 | ✅ `/dev/i2c-1` (2026-11-28) | prova su board |
+| I2C2 (camera) | 174/176 | i2c2, PD15 (SCK) / PD16 (SDA), pull-up R27/R18 | ✅ `/dev/i2c-2` (2026-11-28) | prova su board |
+| SPI0 | 148-154 | **spi1**, PE7 (CS) / PE8 (MOSI) / PE9 (CLK) / PE10 (MISO) | ✅ bus 1, senza periferiche (2026-11-28) | periferiche nel DT della carrier; prova su board |
 | SPI1 | 160-166 | — | — | NC |
 | PWM0 | 210 † | **canale PWM1**, PE6 | `&pwm` disabilitato | gruppo `pwm1` + `&pwm` |
 | GPIO0..4 | 223-233 | PD0-PD4 | senza nome | `gpio-line-names` |
@@ -62,9 +64,9 @@ UART: UART0 (console), UART1 (con RTS/CTS) e UART2.
 | ETH0 MDI0/MDI1 + LED + CT | 3-11, 6-10 | LAN9512 | ✅ funziona, MAC casuale | nodo USB + MAC dall'EEPROM |
 | ETH1, DSI, CSI, I2S, CAN, ADC | — | — | — | NC: la SoM non ha display, camera né CAN |
 
-Le funzioni pinctrl citate (`i2c1`, `i2c2`, `spi1`, `pwm1`)
-esistono nel driver per quei pin. Il `.dtsi` suniv non ha i gruppi: vanno
-scritti nel DTS EGARE, come già fatto per `i2c0-pe-pins`.
+La funzione pinctrl ancora da usare (`pwm1` su PE6)
+esiste nel driver. Il `.dtsi` suniv non ha il gruppo: va scritto nel DTS
+EGARE, come quelli di UART, I2C e SPI.
 
 ## Console su UART0
 
@@ -114,16 +116,38 @@ il flow control (`crtscts`) può bloccare la trasmissione.
 DTB. **Da provare su board**, per esempio con un loopback sull'header (TX su
 RX, RTS su CTS).
 
+## I2C1, I2C2 e SPI0
+
+Sono bus del connettore senza periferiche sulla carrier EGARE di oggi. Il DTS
+accende i controller con i loro pin. Le periferiche, cioè un touch su I2C1, un
+sensore su I2C2 o un chip SPI, le dichiara il DT della carrier che le monta.
+
+* **I2C1** su PD5/PD6 e **I2C2** su PD15/PD16, con i pull-up da 4k7 sulla SoM
+  (foglio CPU: R26/R17 e R27/R18), come vuole la specifica. Da Linux si
+  esplorano con `i2cdetect -y 1` e `i2cdetect -y 2`.
+* **SPI0** del connettore è spi1 del SoC, su PE7-PE10, con un solo chip
+  select (PE7), come vuole la specifica. Senza un nodo figlio non c'è un
+  device da aprire. `spidev` non accetta `compatible = "spidev"` nel DT
+  ("spidev listed directly in DT is not supported", `drivers/spi/spidev.c`),
+  e `CONFIG_SPI_SPIDEV` non è nel kernel. Per provare il bus serve il nodo
+  della periferica vera nel DT della carrier.
+
+`make O=output-egare check` (sezione 12c) verifica per ciascun bus alias,
+nodo attivo e pin, e che `spi0` resti la NAND.
+
 ## Numeri del connettore e numeri del SoC
 
 La specifica nomina i bus con il numero del connettore. Due di questi non
 coincidono con il numero del SoC:
 
 * **SPI0 del connettore è `spi1` del SoC**, perché spi0 serve la SPI NAND di
-  boot (come prescrive la specifica). In Linux è il bus 1
-  (`/dev/spidev1.0`). Un alias `spi0 = &spi1` lo rinumererebbe, ma
-  scambierebbe anche il nome della NAND, che i bootargs chiamano
-  `mtdparts=spi0.0`: meglio lasciarlo e dichiararlo nel datasheet.
+  boot (come prescrive la specifica). In Linux è il bus 1 (`spi1.0`,
+  `/dev/spidev1.0` con spidev). Gli alias lo fissano: `spi0 = &spi0` (NAND),
+  `spi1 = &spi1`. Senza alias, con due controller attivi il numero
+  dipenderebbe dall'ordine di probe, e i bootargs NAND chiamano la flash
+  `mtdparts=spi0.0`. Un alias `spi0 = &spi1` darebbe il numero del
+  connettore, ma toglierebbe il bus 0 alla NAND: meglio dichiararlo nel
+  datasheet.
 * **PWM0 del connettore è il canale 1** di `pwmchip0`.
 
 UART e I2C invece coincidono: uartN e i2cN del SoC sono UARTn e I2Cn del

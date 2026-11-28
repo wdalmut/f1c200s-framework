@@ -51,6 +51,16 @@ ancora nel DT, sta in [EGARE-SPEC-SODIMM.md](EGARE-SPEC-SODIMM.md).
   (`serial2 = &uart2`).
 * **Da provare su board.**
 
+### I2C1, I2C2 e SPI0 del connettore
+
+* i2c1 su PD5/PD6 (`/dev/i2c-1`), i2c2 su PD15/PD16 (`/dev/i2c-2`), spi1 su
+  PE7-PE10 (bus SPI 1, la SPI0 del connettore). Solo i controller: la carrier
+  non ha periferiche su questi bus.
+* Alias `spi0 = &spi0` / `spi1 = &spi1`: la NAND resta sul bus 0, come dicono
+  i bootargs (`mtdparts=spi0.0`), qualunque sia l'ordine di probe.
+* Dettagli in [EGARE-SPEC-SODIMM.md](EGARE-SPEC-SODIMM.md#i2c1-i2c2-e-spi0).
+  **Da provare su board** (`i2cdetect -y 1`, `i2cdetect -y 2`).
+
 ### SPI NAND Winbond W25N02KV
 
 * `xfel spinand` → `Found spi nand flash 'W25N02KV' with 268435456 bytes`

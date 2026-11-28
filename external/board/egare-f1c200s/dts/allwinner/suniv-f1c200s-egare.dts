@@ -28,7 +28,49 @@
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
+		/*
+		 * Numeri di bus fissi. spi0 e' la SPI NAND, e i bootargs NAND la
+		 * chiamano "mtdparts=spi0.0": senza alias, con spi1 attivo il numero
+		 * dipenderebbe dall'ordine di probe. spi1 e' la SPI0 del connettore.
+		 */
+		spi0 = &spi0;
+		spi1 = &spi1;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
 	};
+};
+
+/*
+ * I2C1 del connettore (pin 170/172, per la specifica il touch del pannello):
+ * i2c1 su PD5 (SCK) / PD6 (SDA). Pull-up 4k7 sulla SoM (R26, R17).
+ */
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pd_pins>;
+	status = "okay";
+};
+
+/*
+ * I2C2 del connettore (pin 174/176, per la specifica il sensore camera):
+ * i2c2 su PD15 (SCK) / PD16 (SDA). Pull-up 4k7 sulla SoM (R27, R18).
+ */
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pd_pins>;
+	status = "okay";
+};
+
+/*
+ * SPI0 del connettore (pin 148-154) = spi1 del SoC, su PE9 (CLK), PE8
+ * (MOSI), PE10 (MISO), PE7 (CS0). spi0 del SoC resta interno alla SoM per
+ * la SPI NAND di boot, come vuole la specifica. In Linux e' il bus 1. Le
+ * periferiche le dichiara la carrier che le monta: qui solo il bus.
+ */
+&spi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi1_pe_pins>;
+	status = "okay";
 };
 
 /*
@@ -72,6 +114,21 @@
 	uart2_pd_pins: uart2-pd-pins {
 		pins = "PD13", "PD14";
 		function = "uart2";
+	};
+
+	i2c1_pd_pins: i2c1-pd-pins {
+		pins = "PD5", "PD6";
+		function = "i2c1";
+	};
+
+	i2c2_pd_pins: i2c2-pd-pins {
+		pins = "PD15", "PD16";
+		function = "i2c2";
+	};
+
+	spi1_pe_pins: spi1-pe-pins {
+		pins = "PE7", "PE8", "PE9", "PE10";
+		function = "spi1";
 	};
 
 	/* Il .dtsi definisce i2c0 solo su PD0/PD12. */
