@@ -25,8 +25,9 @@ submodule.
 buildroot/                                  submodule, LTS 2026.02.3 — non toccare
 external/
   external.desc                             name: F1C200S -> $(BR2_EXTERNAL_F1C200S_PATH)
-  external.mk                               include dei package propri (ora nessuno)
-  Config.in                                 menu Kconfig dell'albero (ora vuoto)
+  external.mk                               include dei package propri
+  Config.in                                 menu Kconfig dell'albero: source dei package
+  package/som-id/                           tool EEPROM di identificazione (repo egaree/som-id, tag in som-id.mk)
   configs/ftvogue_f1c200s_defconfig         il defconfig della board di riferimento
   configs/egare_f1c200s_defconfig           la EGARE (vedi docs/EGARE-F1C200S.md)
   board/ftvogue-f1c200s/
@@ -48,6 +49,7 @@ docs/
   SCELTE-DI-PROGETTO.md                     perché è fatto così
   EGARE-F1C200S.md                          la board EGARE: differenze verificate
   EGARE-SPEC-SODIMM.md                      EGARE contro la specifica SODIMM 260-pin: cosa manca nel DT
+  EEPROM-ID.md                              EEPROM di identificazione: cosa vale qui (lo schema è in som-id)
   check-image.sh                            verifica gli artefatti (make check)
   flash-nand.sh                             scrive la SPI NAND via xfel
   test-flash-nand.sh                        prova flash-nand.sh con un xfel finto (anche in CI)
@@ -165,6 +167,7 @@ make distclean              # cancella output/, .config E ANCHE la cache dl/
 | Cambiare il DT di U-Boot EGARE | `board/egare-f1c200s/uboot/suniv-f1c200s-egare-u-boot.dtsi` — Buildroot lo copia in `arch/arm/dts/` a ogni build di U-Boot | `make O=output-egare uboot-rebuild && make O=output-egare` |
 | Cambiare qualcosa solo per la EGARE | `board/egare-f1c200s/` (DTS, fragment applicati dopo quelli FTVOGUE) | stesso flusso, con `O=output-egare` |
 | Cambiare il `bootcmd` o `genimage.cfg` FTVOGUE | anche la copia in `board/egare-f1c200s/`: la CI controlla che restino uguali a parte il DTB | ricostruire entrambe le board |
+| Cambiare lo schema EEPROM o il tool `som-id` | repo `egaree/som-id` (nuovo tag), poi `SOM_ID_VERSION` e `som-id.hash` in `external/package/som-id/`; se cambiano gli offset anche le celle nel DTS EGARE e la sezione 12 di `check-image.sh`. Su un checkout locale: `SOM_ID_OVERRIDE_SRCDIR` in `output-egare/local.mk` | `make O=output-egare som-id-dirclean && make O=output-egare` |
 | Bumpare Buildroot | `cd buildroot && git checkout <tag LTS>` + commit del submodule | build completa |
 
 I fragment e le patch di `board/ftvogue-f1c200s/` valgono **anche per la EGARE**,
@@ -241,4 +244,5 @@ rompe in silenzio senza bisogno di artefatti.
 | `boot: SD` senza SD avviabile | SD non avviabile ma con la nostra FAT inserita |
 | EGARE: `eth0` link su, `tx_packets` sale, `rx_packets` e `rx_errors` fermi a 0 | FIFO MUSB oltre 4 KiB: `patches/linux/0001-*` non applicata (sezione 8b di check) |
 | EGARE: `lsusb` vede solo il root hub | PE4 (`USB_SEL`) basso o MUSB non in host: hog e `dr_mode` nel DTS EGARE |
+| `som-id: write rejected by the EEPROM` | pin WP dell'M24C02 alto (docs/EEPROM-ID.md) |
 | `rootfs: manca /boot/zImage` in `make check` | `BR2_LINUX_KERNEL_INSTALL_TARGET` attivato dopo la build del kernel: `make linux-reinstall && make` |

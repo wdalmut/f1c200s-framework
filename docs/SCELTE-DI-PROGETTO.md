@@ -111,3 +111,28 @@ selezione, non un fallback, coerente con il `bootcmd` esplicito: se il ramo
 scelto fallisce, il boot si ferma. Per la stessa ragione l'environment è
 `ENV_IS_NOWHERE`: vale quello compilato, e l'environment su SPI NOR del
 defconfig upstream qui non avrebbe dove stare.
+
+## EEPROM di identificazione scritta da Linux
+
+Il device tree nell'immagine del modulo è l'unica fonte di verità sulle
+periferiche: l'EEPROM a `0x50` contiene solo chi è il modulo (prodotto,
+revisione, variante, seriale, MAC) e i pochi dati che servono all'SPL prima
+della DRAM. Niente bitmap di capacità: due fonti sulle periferiche finiscono
+per contraddirsi.
+
+Il record si scrive dalla board sotto Linux, con `som-id`, perché il
+collaudo ha già la console e non servono adattatori I2C esterni. Il costo è
+che il DT non può dichiarare l'EEPROM `read-only`: la protezione è solo il
+pin WP. Il tool è in C perché la shell BusyBox non calcola comodamente un
+CRC16 e perché lo stesso parser andrà in U-Boot; vive in una repo propria
+(`egaree/som-id`, MIT) perché serve a tutta la famiglia, SMARC compresi, e
+qui si fissa solo il tag.
+
+I MAC stanno in due slot espliciti, uno per porta, invece di base + numero:
+nessun lettore deve supporre che siano contigui. Linux non li legge con
+`nvmem-cells`: con la `fixed-layout` del 6.12 un `mac-base` con offset non
+funziona, nvmem non controlla magic e CRC, e `local-mac-address` scritto da
+U-Boot ha comunque la precedenza. Una cella nvmem sul nodo Ethernet
+entrerebbe in gioco solo quando U-Boot ha scartato il record, cioè proprio
+quando non va usata. Design completo:
+[superpowers/specs/2026-11-28-eeprom-id-design.md](superpowers/specs/2026-11-28-eeprom-id-design.md).

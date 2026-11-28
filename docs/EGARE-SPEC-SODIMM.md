@@ -44,7 +44,7 @@ GPIO0..7 con il loro nome. Manca il card detect di SD0.
 | UART0, console di debug | 205/207 | uart0, PE0/PE1 | ✅ console, verificata su board 2026-11-28 | — |
 | UART1 + RTS/CTS (RS-485) | 180-186 | uart1, PA2/PA3 + PA0 (RTS) / PA1 (CTS) | ✅ PA0-PA3, `uart-has-rtscts` (2026-11-28) | prova su board; RS-485 nel DT della carrier che monta il transceiver |
 | UART2 | 190/192 | uart2, PD13 (TX) / PD14 (RX) | ✅ `ttyS2` (2026-11-28) | prova su board |
-| I2C0 + EEPROM | 211/213 | i2c0, PE11/PE12 | ✅ | layout nvmem dei 64 byte (seriale, MAC) |
+| I2C0 + EEPROM | 211/213 | i2c0, PE11/PE12 | ✅ | schema v1.0 e celle nvmem: [EEPROM-ID.md](EEPROM-ID.md) |
 | I2C1 (touch) | 170/172 | i2c1, PD5 (SCK) / PD6 (SDA), pull-up R26/R17 | ✅ `/dev/i2c-1` (2026-11-28) | prova su board |
 | I2C2 (camera) | 174/176 | i2c2, PD15 (SCK) / PD16 (SDA), pull-up R27/R18 | ✅ `/dev/i2c-2` (2026-11-28) | prova su board |
 | SPI0 | 148-154 | **spi1**, PE7 (CS) / PE8 (MOSI) / PE9 (CLK) / PE10 (MISO) | ✅ bus 1, senza periferiche (2026-11-28) | periferiche nel DT della carrier; prova su board |
@@ -194,19 +194,21 @@ dichiarare la limitazione che la specifica chiede ai moduli con Ethernet su
 USB ("Vincolo per il modulo che usa un controller Ethernet USB"): in Linux non
 c'è device mode. Il FEL invece resta, perché fino a U-Boot PE4 è basso.
 
-**MAC dell'ETH0.** Si può fare tutto nel DT:
+**MAC dell'ETH0.** Il record dell'EEPROM è definito (schema v1.0, MAC
+ETH0 all'offset `0x10`: [EEPROM-ID.md](EEPROM-ID.md)). Nel DT servono:
 
 * sotto `&usb_otg`, il nodo dell'hub (`compatible = "usb424,9512"`,
   `reg = <1>`) e dentro quello dell'Ethernet (`"usb424,ec00"`, `reg = <1>`),
-  come sul Raspberry Pi B;
-* sul nodo Ethernet, `nvmem-cells` che punta a una cella fissa all'offset
-  `0x2D` dell'EEPROM (offset della specifica).
+  come sul Raspberry Pi B, con l'alias `ethernet0`;
+* nessuna `nvmem-cells` sul nodo Ethernet: il MAC lo scrive U-Boot come
+  `local-mac-address`, dopo aver verificato magic e CRC del record. nvmem
+  non li verifica, e `local-mac-address` ha comunque la precedenza.
 
 Verificato nei sorgenti: la glue `drivers/usb/musb/sunxi.c` passa il nodo DT
 al device `musb-hdrc`, quindi l'hub radice ha un `of_node` e i figli si
 agganciano per `reg`. `smsc95xx` legge il MAC con
-`platform_get_ethdev_address()`, che conosce `nvmem-cells`. Prima va definito
-e scritto il contenuto dell'EEPROM (passo 1 del lavoro futuro in
+`platform_get_ethdev_address()`, che guarda `local-mac-address`. Restano da
+fare il nodo dell'hub e la lettura in U-Boot (passo 2 del lavoro futuro in
 [EGARE-F1C200S.md](EGARE-F1C200S.md)).
 
 **SD0_CD#.** La specifica vuole il pull-up da 10 kΩ sulla SoM. Nel foglio CPU

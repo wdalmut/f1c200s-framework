@@ -119,6 +119,9 @@ ancora nel DT, sta in [EGARE-SPEC-SODIMM.md](EGARE-SPEC-SODIMM.md).
   build EGARE avviata da SD (`root=/dev/mmcblk0p2`, model `EGARE F1C200S`):
   `hexdump -C` legge 256 byte, tutti `ff`; scrittura di `a5` all'offset 255
   con `dd`, riletto `a5`, poi ripristinato `ff`.
+* È l'EEPROM di identificazione del modulo (schema v1.0,
+  [EEPROM-ID.md](EEPROM-ID.md)): `som-id` nel rootfs la legge e la scrive,
+  e il DTS ne dichiara le celle nvmem (`/sys/bus/nvmem/devices/*/cells/`).
 
 ### Porte USB
 
@@ -217,9 +220,10 @@ ci sia `eeprom@50` e che il kernel abbia `CONFIG_EEPROM_AT24=y`.
 
 ## Lavoro futuro
 
-L'EEPROM sarà l'EEPROM di identificazione del modulo. Due passi ancora da
-progettare, ciascuno con il suo design:
+L'EEPROM è l'EEPROM di identificazione del modulo. Due passi:
 
-1. schema dei 64 byte (identificazione, dati per esemplare, CRC16) e tool
-   per scriverli;
-2. U-Boot che legge l'EEPROM e sceglie DT e overlay della carrier.
+1. ~~schema dei 64 byte e tool per scriverli~~: fatto, schema v1.0 e tool
+   `som-id` ([EEPROM-ID.md](EEPROM-ID.md));
+2. U-Boot che legge l'EEPROM (`ethaddr`, `serial#`, `local-mac-address`) e
+   sceglie DT e overlay della carrier. La scelta della carrier richiede
+   un'EEPROM sulla carrier: quella del modulo non la identifica.
