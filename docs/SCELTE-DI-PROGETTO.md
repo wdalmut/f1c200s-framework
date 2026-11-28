@@ -154,3 +154,13 @@ dal 1970 all'ora corrente, perché la SoM non ha un RTC da disciplinare. Le
 cose che mancano (server NTP presi dal DHCP con l'opzione 42, statistiche) si
 aggiungono passando a `chrony` quando serviranno. Il fragment e l'overlay
 stanno sotto `board/egare-f1c200s/`: la FTVOGUE non ha rete.
+
+## EGARE: TLS con OpenSSL
+
+La EGARE ha OpenSSL e `ca-certificates` fin dalla prima versione del
+defconfig; `curl` usa lo stesso backend invece di mbedTLS o wolfSSL. Una
+sola libreria TLS nell'immagine, un solo bundle CA, e la libreria che i
+client più comuni (mosquitto, Python, paho, librerie MQTT in C) danno per
+scontata. Il costo in spazio non pesa su 256 MiB di NAND. Il binario `openssl`
+c'è per diagnosticare una connessione TLS (`openssl s_client`) prima di
+sospettare l'applicazione.

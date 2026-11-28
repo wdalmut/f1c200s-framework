@@ -240,6 +240,25 @@ tabelle 2-3, 2-6) e con lo schema Mavis, dove lo stesso circuito funziona.
   corregge con un salto. Finché non è sincronizzata, TLS rifiuta i
   certificati come "not yet valid".
 * Il fuso è UTC (nessun `BR2_TARGET_TZ_INFO`).
+* **TLS**: OpenSSL 3 (`libssl.so.3`, `libcrypto.so.3`) con il binario
+  `openssl`, i certificati CA di `ca-certificates` (bundle in
+  `/etc/ssl/certs/ca-certificates.crt`, hash in `/etc/ssl/certs/`) e `curl`
+  con backend OpenSSL (stringhe verbose attive, per `curl -v`). È la base per
+  https, mqtts e qualunque client TLS che si appoggi a OpenSSL. `make check`
+  (sezione 13c) controlla che libcurl sia davvero collegata a `libssl` e che
+  il bundle ci sia. **Verificato** (prova su board, 2026-11-28):
+  `curl -sSv https://example.com` negozia TLSv1.3
+  (`TLS_AES_256_GCM_SHA384`, scambio chiavi `X25519MLKEM768`), verifica la
+  catena con il bundle (`OpenSSL verify result: 0`) e riceve `200 OK`.
+  Porta MQTT su TLS: `openssl s_client -connect test.mosquitto.org:8886`
+  (certificato Let's Encrypt) dà `Verification: OK`. Sulla 8883 lo stesso
+  server usa la CA privata di Mosquitto e fallisce, come deve, con
+  `unable to get local issuer certificate`.
+  Il SoC non ha un generatore hardware di numeri casuali: il CRNG del kernel
+  si inizializza solo quando il primo client TLS chiede byte casuali
+  (`random: crng init done` a 24 s, durante il `curl`). Il kernel lo
+  sblocca da solo con il jitter della CPU. La prima connessione TLS dopo
+  l'avvio può quindi attendere un attimo.
 * **Verificato** (prova su board, 2026-11-28, avvio da SD, cavo collegato):
   `Link is Up` a 4 s, il primo DISCOVER parte a link giù e va perso, il
   secondo prende il lease; `date` corretta dopo pochi secondi; cavo staccato e

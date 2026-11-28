@@ -63,4 +63,14 @@ S49ntpd, server in /etc/ntp.conf); senza RTC riparte dal 1970.
   ntpd -d -n -q          # una sincronizzazione a mano, verbosa
   date
 
+TLS (OpenSSL 3, certificati CA in /etc/ssl/certs) e curl; serve l'ora
+giusta, altrimenti i certificati risultano "not yet valid":
+
+  curl -sSv https://example.com -o /dev/null
+  openssl s_client -connect test.mosquitto.org:8886 -brief </dev/null
+
+Su test.mosquitto.org la 8886 ha un certificato Let's Encrypt; la 8883 e'
+firmata dalla CA privata di Mosquitto e con il solo bundle di sistema da'
+"unable to get local issuer certificate" (serve -CAfile mosquitto.org.crt).
+
 Fatti verificati e stato delle prove: docs/EGARE-F1C200S.md.

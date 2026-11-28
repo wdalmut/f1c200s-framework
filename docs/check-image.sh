@@ -487,6 +487,29 @@ if [ "$DTB_NAME" = suniv-f1c200s-egare.dtb ]; then
 	grep -qE '^[[:space:]]*server[[:space:]]+[^[:space:]]' "$tgt/etc/ntp.conf" 2>/dev/null \
 		&& pass "rootfs: /etc/ntp.conf con almeno un server" \
 		|| fail "rootfs: /etc/ntp.conf assente o senza righe server"
+
+	# --- 13c. EGARE: curl con TLS e certificati CA ---------------------------
+	# Due rotture silenziose: se OpenSSL sparisce dal defconfig, la choice
+	# del backend TLS di libcurl ripiega su "None" e curl si costruisce lo
+	# stesso, ma https:// risponde "Protocol not supported"; senza
+	# ca-certificates curl, OpenSSL e i client MQTT non hanno il bundle e
+	# rifiutano ogni certificato ("unable to get local issuer certificate").
+	[ -x "$tgt/usr/bin/curl" ] \
+		&& pass "rootfs: /usr/bin/curl" || fail "rootfs: manca /usr/bin/curl (BR2_PACKAGE_LIBCURL_CURL)"
+	[ -x "$tgt/usr/bin/openssl" ] \
+		&& pass "rootfs: /usr/bin/openssl" || fail "rootfs: manca /usr/bin/openssl (BR2_PACKAGE_LIBOPENSSL_BIN; attivato dopo la build: make libopenssl-reconfigure)"
+	relf="$(ls "$HOSTBIN"/*-readelf 2>/dev/null | head -n1)"
+	libcurl="$(ls "$tgt"/usr/lib/libcurl.so.* 2>/dev/null | head -n1)"
+	if [ -n "$relf" ] && [ -n "$libcurl" ]; then
+		"$relf" -d "$libcurl" | grep -q 'NEEDED.*\[libssl\.so' \
+			&& pass "rootfs: libcurl collegata a libssl (https, mqtts)" \
+			|| fail "rootfs: libcurl senza TLS (backend None: BR2_PACKAGE_LIBCURL_OPENSSL)"
+	else
+		skip "readelf o libcurl non trovati: backend TLS di curl non verificato"
+	fi
+	[ -s "$tgt/etc/ssl/certs/ca-certificates.crt" ] \
+		&& pass "rootfs: bundle CA /etc/ssl/certs/ca-certificates.crt" \
+		|| fail "rootfs: manca il bundle CA (BR2_PACKAGE_CA_CERTIFICATES)"
 fi
 
 echo

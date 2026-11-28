@@ -170,6 +170,7 @@ make distclean              # cancella output/, .config E ANCHE la cache dl/
 | EGARE: DHCP all'avvio su un'altra interfaccia (o toglierlo) | `BR2_SYSTEM_DHCP` nel defconfig EGARE | `make O=output-egare ifupdown-scripts-reinstall && make O=output-egare` |
 | EGARE: server NTP | `board/egare-f1c200s/rootfs_overlay/etc/ntp.conf` (righe `server`) | `make O=output-egare` |
 | EGARE: applet BusyBox | `board/egare-f1c200s/busybox.fragment` | `make O=output-egare busybox-reconfigure && make O=output-egare` |
+| EGARE: pacchetti TLS (OpenSSL, CA, curl) | `make O=output-egare menuconfig` | `make O=output-egare savedefconfig && make O=output-egare` |
 | Cambiare qualcosa solo per la EGARE | `board/egare-f1c200s/` (DTS, fragment applicati dopo quelli FTVOGUE) | stesso flusso, con `O=output-egare` |
 | Cambiare il `bootcmd` o `genimage.cfg` FTVOGUE | anche la copia in `board/egare-f1c200s/`: la CI controlla che restino uguali a parte il DTB | ricostruire entrambe le board |
 | Cambiare lo schema EEPROM o il tool `som-id` | repo `egaree/som-id` (nuovo tag), poi `SOM_ID_VERSION` e `som-id.hash` in `external/package/som-id/`; se cambiano gli offset anche le celle nel DTS EGARE e la sezione 12 di `check-image.sh`. Su un checkout locale: `SOM_ID_OVERRIDE_SRCDIR` in `output-egare/local.mk` | `make O=output-egare som-id-dirclean && make O=output-egare` |
@@ -254,6 +255,9 @@ rompe in silenzio senza bisogno di artefatti.
 | EGARE: `lsusb` vede solo il root hub | PE4 (`USB_SEL`) basso o MUSB non in host: hog e `dr_mode` nel DTS EGARE |
 | EGARE: `eth0` con MAC casuale, diverso a ogni avvio | EEPROM vergine o slot ETH0 non valido (`som-id show`), oppure `nvmem-cells`/alias `ethernet0` mancanti nel DTB (sezione 12 di check) |
 | EGARE: `date` nel 1970, `wget`/TLS: `certificate is not yet valid` | niente RTC e `ntpd` non sincronizzato: niente lease su `eth0`, DNS assente, o `S49ntpd` fallito (`ps \| grep ntpd`, sezione 13b di check) |
+| EGARE: `curl: (1) Protocol "https" not supported` | libcurl costruita senza backend TLS (OpenSSL tolto dal defconfig): sezione 13c di check |
+| EGARE: `unable to get local issuer certificate` con l'ora giusta | server con una CA privata (es. `test.mosquitto.org:8883`): va passata la sua CA (`-CAfile`, `--cafile`); se fallisce anche un sito pubblico, manca il bundle CA (`BR2_PACKAGE_CA_CERTIFICATES`, sezione 13c di check) |
 | EGARE: `eth0` senza indirizzo dopo il boot | nessun server DHCP raggiungibile (`udhcpc` resta in background e ritenta), o `iface eth0 inet dhcp` assente in `/etc/network/interfaces` (sezione 13b) |
 | `som-id: write rejected by the EEPROM` o `read-back differs` | pin WP dell'EEPROM alto (docs/EEPROM-ID.md) |
 | `rootfs: manca /boot/zImage` in `make check` | `BR2_LINUX_KERNEL_INSTALL_TARGET` attivato dopo la build del kernel: `make linux-reinstall && make` |
+| `rootfs: manca /usr/bin/openssl` in `make check` | `BR2_PACKAGE_LIBOPENSSL_BIN` attivato dopo la build: è un'opzione del configure (`no-apps`), `reinstall` non basta: `make libopenssl-reconfigure && make` |
