@@ -174,7 +174,13 @@ U6/U7 comandati da `USB_SEL` (PE4), e le porte della carrier si dividono così
 * Niente EEPROM sul LAN9512 (pin EE* liberi): senza altro `smsc95xx` usa un
   **MAC casuale** a ogni avvio. Il DTS EGARE gli dà quello della M24C02 con
   `nvmem-cells` (cella `mac-address@10`, alias `ethernet0`):
-  [EEPROM-ID.md](EEPROM-ID.md). Da provare sulla board.
+  [EEPROM-ID.md](EEPROM-ID.md). **Verificato** (prova su board,
+  2026-11-28, avvio da SD): `ip a` mostra su `eth0` lo stesso MAC che
+  `som-id verify` legge come `mac0`; at24 si registra a 1,18 s, il LAN9512
+  a 2,41 s. Il messaggio `musb-sunxi 1c13000.usb: Failed to create device
+  link (0x180) with 1c27000.i2c:eeprom@50:nvmem-layout` è innocuo:
+  fw_devlink prova a legare la MUSB al nodo `nvmem-layout`, che non è un
+  device; il MAC arriva lo stesso.
 * Le coppie TX/RX verso l'RJ45 sono scambiate di proposito (nota sullo schema):
   le copre l'Auto-MDIX, che il driver `smsc` accende comunque scavalcando lo
   strap `AUTOMDIX_EN`.

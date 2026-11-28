@@ -39,8 +39,10 @@ Perché è fatto così: [SCELTE-DI-PROGETTO.md](SCELTE-DI-PROGETTO.md),
   un MAC ancora plausibile verrebbe usato. Perché si è accettato:
   [superpowers/specs/2026-11-28-eeprom-mac-nvmem-design.md](superpowers/specs/2026-11-28-eeprom-mac-nvmem-design.md).
 - Se l'EEPROM non è ancora registrata quando si enumera il LAN9512,
-  `smsc95xx` non riprova e usa un MAC casuale (atteso di no: l'I2C è
-  built-in e la USB si enumera dopo).
+  `smsc95xx` non riprova e usa un MAC casuale. Sulla board non succede:
+  at24 a 1,18 s, LAN9512 a 2,41 s (prova del 2026-11-28, in
+  [EGARE-F1C200S.md](EGARE-F1C200S.md), con il messaggio innocuo di
+  fw_devlink su `nvmem-layout`).
 - Il nodo `eeprom@50` non ha `read-only` né `wp-gpios`: la produzione scrive
   da Linux, e la protezione è solo il pin WP. `make check` lo verifica,
   insieme agli offset delle celle.
