@@ -64,6 +64,34 @@ Le ragioni dell'organizzazione dei file sono nel
   `hexdump -C` legge 256 byte, tutti `ff`; scrittura di `a5` all'offset 255
   con `dd`, riletto `a5`, poi ripristinato `ff`.
 
+### Porte USB
+
+Il F1C200s ha una sola USB (MUSB OTG). Sulla EGARE passa dai mux FSUSB42
+U6/U7 comandati da `USB_SEL` (PE4), e le porte della carrier si dividono così
+(schema SoM, foglio USB; schema carrier, foglio USB):
+
+| Porta | Collegamento | PE4 basso: BROM, SPL, U-Boot | PE4 alto: Linux |
+|---|---|---|---|
+| USB-C (CN4) | `USB0_DP/DM`, pin 39/41 del SODIMM → U7 | diretta sulla CPU, modalità device: FEL | porta 2 dell'hub LAN9512 (`1-1.2`) |
+| USB-A (CN8) | `USB1_DP/DM`, pin 45/47 del SODIMM → `USBDP3/USBDM3` del LAN9512 | non raggiungibile: il LAN9512 è staccato dalla CPU | porta 3 dell'hub (`1-1.3`) |
+| Ethernet | interna al LAN9512 | non raggiungibile | porta 1 dell'hub (`1-1.1`, verificata) |
+
+* PE4 lo porta alto solo il kernel (hog nel DTS EGARE): fino a U-Boot compreso
+  vale il pull-down, quindi la USB-C resta la porta del FEL.
+* Da Linux entrambe le porte sono host, attraverso l'hub. I numeri `1-1.2` e
+  `1-1.3` vengono dallo schema; finora è verificata solo la `1-1.1`.
+* **USB-C:** CC1/CC2 con 5,1 kΩ verso GND, cioè la board si presenta come
+  sink; il VBUS entra su `VSYS` attraverso D3. È un ingresso di alimentazione:
+  in host la porta non alimenta il dispositivo collegato, che deve essere
+  autoalimentato (o passare da un hub alimentato).
+* **USB-A:** VBUS da `VSYS` (dalla prossima revisione della carrier), sempre
+  acceso: `PRTCTL3` del LAN9512 non è collegato e il suo pull-up interno tiene
+  la porta senza sovracorrente.
+* Kernel: `USB_HID`, `HID_GENERIC` e `INPUT_EVDEV` ci sono già, quindi
+  tastiere e mouse funzionano senza modifiche; `USB_STORAGE` no.
+  Una tastiera è low-speed: dietro l'hub high-speed passa dal transaction
+  translator del LAN9512, un caso non ancora provato su questa board.
+
 ### LAN9512 (hub USB + Ethernet 10/100)
 
 * **`USB_SEL` = PE4** (pin 45 del QFN88) pilota i mux FSUSB42 U6/U7 e il gate
