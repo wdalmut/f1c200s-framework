@@ -68,7 +68,7 @@ ancora nel DT, sta in [EGARE-SPEC-SODIMM.md](EGARE-SPEC-SODIMM.md).
 * GPIO0..7 = PD0-PD4, PD17-PD19, con il nome in `gpio-line-names`; nell'immagine
   ci sono i tool di libgpiod (`gpioinfo`, `gpioget`, `gpioset`).
 * Dettagli in [EGARE-SPEC-SODIMM.md](EGARE-SPEC-SODIMM.md#pwm0-e-gpio).
-* **Verificato** (prova su board, 2026-11-28): PWM0 e GPIO0..7 funzionano.
+* **Verificato** (prova su board, 2026-11-28): GPIO0..7. **PWM0 da provare.**
 
 ### SPI NAND Winbond W25N02KV
 

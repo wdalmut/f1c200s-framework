@@ -49,7 +49,7 @@ GPIO0..7 con il loro nome. Manca il card detect di SD0.
 | I2C2 (camera) | 174/176 | i2c2, PD15 (SCK) / PD16 (SDA), pull-up R27/R18 | ✅ `/dev/i2c-2` (2026-11-28) | prova su board |
 | SPI0 | 148-154 | **spi1**, PE7 (CS) / PE8 (MOSI) / PE9 (CLK) / PE10 (MISO) | ✅ bus 1, senza periferiche (2026-11-28) | periferiche nel DT della carrier; prova su board |
 | SPI1 | 160-166 | — | — | NC |
-| PWM0 | 210 | **canale 1** del PWM, PE6 | ✅ `pwmchip0` canale 1, verificato su board 2026-11-28 | — |
+| PWM0 | 210 † | **canale 1** del PWM, PE6 | ✅ `pwmchip0` canale 1 (2026-11-28) | prova su board |
 | GPIO0..4 | 223-233 | PD0-PD4 | ✅ `gpio-line-names`, verificato su board 2026-11-28 | — |
 | GPIO5..7 | 235-241 | PD17-PD19 | ✅ `gpio-line-names`, verificato su board 2026-11-28 | — |
 | GPIO8..19 | — | — | — | NC |
@@ -136,7 +136,7 @@ nodo attivo e pin, e che `spi0` resti la NAND.
 
 ## PWM0 e GPIO
 
-**PWM0** (pin 210) è il canale 1 del PWM su PE6: il DTS accende il
+**PWM0** (pin 210 †) è il canale 1 del PWM su PE6: il DTS accende il
 controller e mette in mux solo PE6. Il canale 0 non è sul connettore, e i
 suoi pin (PA2, PE12) servono a UART1 e I2C0. Per la numerazione vedi sotto.
 
@@ -156,7 +156,7 @@ gpioget -c gpiochip0 GPIO3     # legge GPIO3 del connettore
 gpioset -c gpiochip0 GPIO3=1   # lo porta alto (finché il comando gira)
 ```
 
-**Verificato su board** (2026-11-28): PWM0 e GPIO0..7 funzionano.
+**Verificato su board** (2026-11-28): GPIO0..7. **PWM0 da provare.**
 
 `make O=output-egare check` (sezione 12c) verifica che la PWM sia attiva su
 PE6 e che ogni nome GPIO0..7 stia sulla linea giusta: un `""` in più o in
