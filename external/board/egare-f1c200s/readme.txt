@@ -8,10 +8,11 @@ resto (patch SPL, fragment di base, U-Boot) viene da ../ftvogue-f1c200s/.
   dts/allwinner/suniv-f1c200s-egare.dts
                    DTS Lctech Pi + console su uart0 (PE0/PE1), uart1 con
                    RTS/CTS (PA0-PA3), uart2 (PD13/PD14), i2c0 su
-                   PE11/PE12 + EEPROM a 0x50, i2c1 (PD5/PD6), i2c2
-                   (PD15/PD16), spi1 (PE7-PE10), PWM canale 1 (PE6), nomi
-                   GPIO0..7, MUSB in host e PE4 (USB_SEL) alto verso il
-                   LAN9512
+                   PE11/PE12 + EEPROM a 0x50 (celle nvmem del record
+                   v1.0), i2c1 (PD5/PD6), i2c2 (PD15/PD16), spi1
+                   (PE7-PE10), PWM canale 1 (PE6), nomi GPIO0..7, MUSB in
+                   host e PE4 (USB_SEL) alto verso il LAN9512, nodo del
+                   LAN9512 (ethernet0) con il MAC dall'EEPROM
   linux.fragment   applicato dopo quello FTVOGUE: CONFIG_EEPROM_AT24,
                    smsc95xx (LAN9512), usbmon
   uboot.fragment   applicato dopo quello FTVOGUE: console su uart0

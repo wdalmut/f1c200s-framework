@@ -8,7 +8,7 @@ l'unica fonte di verità sulle periferiche.
 **Lo schema dei 64 byte non sta qui.** Vale per tutta la famiglia, quindi
 vive con il parser e il tool nella repo
 [egaree/som-id](https://github.com/egaree/som-id), in
-[SPEC.md](https://github.com/egaree/som-id/blob/v1.0.0/SPEC.md) (schema
+[SPEC.md](https://github.com/egaree/som-id/blob/master/SPEC.md) (schema
 v1.0, tag `v1.0.0`). Questo documento dice solo cosa vale per la EGARE.
 Perché è fatto così: [SCELTE-DI-PROGETTO.md](SCELTE-DI-PROGETTO.md),
 "EEPROM di identificazione scritta da Linux"; il design completo è in
@@ -32,9 +32,15 @@ Perché è fatto così: [SCELTE-DI-PROGETTO.md](SCELTE-DI-PROGETTO.md),
 
   Le celle leggono i byte così come sono, senza controllare magic e CRC:
   per un valore affidabile si usa `som-id show`.
-- Nessun nodo Ethernet ha `nvmem-cells` verso i MAC. Il MAC arriverà da
-  U-Boot, che verifica il record e scrive `local-mac-address` (non ancora
-  fatto, vedi sotto).
+- Il MAC dell'ETH0 (LAN9512) arriva a Linux con `nvmem-cells` sulla cella
+  `mac-address@10` (alias `ethernet0`): niente U-Boot di mezzo. Linux scarta
+  `FF…FF`, zero e multicast, e con un'EEPROM vergine o uno slot non valido
+  il MAC torna casuale. **Non** controlla magic e CRC: un record corrotto con
+  un MAC ancora plausibile verrebbe usato. Perché si è accettato:
+  [superpowers/specs/2026-11-28-eeprom-mac-nvmem-design.md](superpowers/specs/2026-11-28-eeprom-mac-nvmem-design.md).
+- Se l'EEPROM non è ancora registrata quando si enumera il LAN9512,
+  `smsc95xx` non riprova e usa un MAC casuale (atteso di no: l'I2C è
+  built-in e la USB si enumera dopo).
 - Il nodo `eeprom@50` non ha `read-only` né `wp-gpios`: la produzione scrive
   da Linux, e la protezione è solo il pin WP. `make check` lo verifica,
   insieme agli offset delle celle.
@@ -76,9 +82,10 @@ unicità; mai ricavati dal seriale, mai riusati, nemmeno da schede scartate.
 
 ## Cosa manca
 
-- U-Boot che legge il record e imposta `ethaddr`, `eth1addr`, `serial#` e
-  `local-mac-address` (con il nodo dell'hub LAN9512 e l'alias `ethernet0`
-  nel DT).
+- U-Boot non legge il record: niente `serial#` né
+  `/proc/device-tree/serial-number` (il seriale si legge con `som-id show` o
+  dalla cella `serial-number@1c,0`). Servirà quando U-Boot avrà bisogno lui
+  dei dati (SPL con più configurazioni DDR, carrier).
 - L'SPL non legge l'EEPROM: sulla F1C200s la DRAM è nel package e il campo
   DDR vale `0x00`.
 

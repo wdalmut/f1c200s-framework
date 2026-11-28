@@ -61,7 +61,7 @@ GPIO0..7 con il loro nome. Manca il card detect di SD0.
 | USB0_ID | 24 | PE3, pull-up R23; Q2 lo porta a massa con PE4 alto | non descritto | niente (sotto) |
 | USB1 | 45/47 | porta 3 del LAN9512 | ✅ attraverso l'hub | — |
 | USB1_VBUS_EN / USB1_OC# | 26/28 | — | — | NC, vedi "Fuori dal DT" |
-| ETH0 MDI0/MDI1 + LED + CT | 3-11, 6-10 | LAN9512 | ✅ funziona, MAC casuale | nodo USB + MAC dall'EEPROM |
+| ETH0 MDI0/MDI1 + LED + CT | 3-11, 6-10 | LAN9512 | ✅ funziona; MAC dall'EEPROM via nvmem (2026-11-28, da provare su board) | — |
 | ETH1, DSI, CSI, I2S, CAN, ADC | — | — | — | NC: la SoM non ha display, camera né CAN |
 
 Il `.dtsi` suniv non ha i gruppi pinctrl di questi pin: sono tutti nel DTS
@@ -195,21 +195,21 @@ USB ("Vincolo per il modulo che usa un controller Ethernet USB"): in Linux non
 c'è device mode. Il FEL invece resta, perché fino a U-Boot PE4 è basso.
 
 **MAC dell'ETH0.** Il record dell'EEPROM è definito (schema v1.0, MAC
-ETH0 all'offset `0x10`: [EEPROM-ID.md](EEPROM-ID.md)). Nel DT servono:
+ETH0 all'offset `0x10`: [EEPROM-ID.md](EEPROM-ID.md)). Nel DTS EGARE ci
+sono:
 
 * sotto `&usb_otg`, il nodo dell'hub (`compatible = "usb424,9512"`,
   `reg = <1>`) e dentro quello dell'Ethernet (`"usb424,ec00"`, `reg = <1>`),
   come sul Raspberry Pi B, con l'alias `ethernet0`;
-* nessuna `nvmem-cells` sul nodo Ethernet: il MAC lo scrive U-Boot come
-  `local-mac-address`, dopo aver verificato magic e CRC del record. nvmem
-  non li verifica, e `local-mac-address` ha comunque la precedenza.
+* sul nodo Ethernet, `nvmem-cells` verso la cella `mac-address@10`. nvmem
+  scarta `FF…FF`, zero e multicast ma non controlla magic e CRC del record:
+  limite accettato, vedi [EEPROM-ID.md](EEPROM-ID.md).
 
 Verificato nei sorgenti: la glue `drivers/usb/musb/sunxi.c` passa il nodo DT
 al device `musb-hdrc`, quindi l'hub radice ha un `of_node` e i figli si
 agganciano per `reg`. `smsc95xx` legge il MAC con
-`platform_get_ethdev_address()`, che guarda `local-mac-address`. Restano da
-fare il nodo dell'hub e la lettura in U-Boot (passo 2 del lavoro futuro in
-[EGARE-F1C200S.md](EGARE-F1C200S.md)).
+`platform_get_ethdev_address()`, che guarda il DT (`local-mac-address`, poi
+`nvmem-cells`). Da provare sulla board.
 
 **SD0_CD#.** La specifica vuole il pull-up da 10 kΩ sulla SoM. Nel foglio CPU
 non si vede (†): se manca, il flag `GPIO_PULL_UP` usa quello interno (il

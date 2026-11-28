@@ -171,8 +171,10 @@ U6/U7 comandati da `USB_SEL` (PE4), e le porte della carrier si dividono così
 * **Verificato** (prova su board, 2026-11-28): hub `1-1` a 3 porte, Ethernet su
   `1-1.1` in high-speed, `Link is Up - 100Mbps/Full`, `ping` al gateway con
   risposta in ~1.2 ms.
-* Niente EEPROM sul LAN9512 (pin EE* liberi): `smsc95xx` usa un **MAC casuale**
-  a ogni avvio. Da risolvere con il MAC nella M24C02 o passato da U-Boot nel DT.
+* Niente EEPROM sul LAN9512 (pin EE* liberi): senza altro `smsc95xx` usa un
+  **MAC casuale** a ogni avvio. Il DTS EGARE gli dà quello della M24C02 con
+  `nvmem-cells` (cella `mac-address@10`, alias `ethernet0`):
+  [EEPROM-ID.md](EEPROM-ID.md). Da provare sulla board.
 * Le coppie TX/RX verso l'RJ45 sono scambiate di proposito (nota sullo schema):
   le copre l'Auto-MDIX, che il driver `smsc` accende comunque scavalcando lo
   strap `AUTOMDIX_EN`.
@@ -228,6 +230,7 @@ L'EEPROM è l'EEPROM di identificazione del modulo. Due passi:
 
 1. ~~schema dei 64 byte e tool per scriverli~~: fatto, schema v1.0 e tool
    `som-id` ([EEPROM-ID.md](EEPROM-ID.md));
-2. U-Boot che legge l'EEPROM (`ethaddr`, `serial#`, `local-mac-address`) e
-   sceglie DT e overlay della carrier. La scelta della carrier richiede
-   un'EEPROM sulla carrier: quella del modulo non la identifica.
+2. U-Boot che legge l'EEPROM (`ethaddr`, `serial#`) e sceglie DT e overlay
+   della carrier. Per ora non serve: il MAC dell'ETH0 arriva a Linux via
+   `nvmem-cells`. La scelta della carrier richiede un'EEPROM sulla carrier:
+   quella del modulo non la identifica.

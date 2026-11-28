@@ -1,5 +1,10 @@
 # EEPROM di identificazione: schema dei 64 byte e tool `som-id` — design
 
+> **Superato in un punto:** l'anti-obiettivo "`nvmem-cells` sui nodi
+> Ethernet" non vale più. Il MAC dell'ETH0 EGARE arriva a Linux proprio con
+> `nvmem-cells`, senza U-Boot: vedi
+> [2026-11-28-eeprom-mac-nvmem-design.md](2026-11-28-eeprom-mac-nvmem-design.md).
+
 ## Intento
 
 Ogni SoM della famiglia (SODIMM 260 pin oggi, SMARC 2.1 domani) ha su I2C0,

@@ -302,10 +302,10 @@ if [ "$DTB_NAME" = suniv-f1c200s-egare.dtb ]; then
 		# Celle nvmem del record di identificazione (docs/EEPROM-ID.md):
 		# offset fissi dello schema v1.0. Niente read-only ne' wp-gpios
 		# (la produzione scrive da Linux; con wp-gpios nvmem sbloccherebbe
-		# il WP a ogni scrittura) e nessuna nvmem-cells verso i MAC: li da'
-		# U-Boot dopo aver verificato magic e CRC. dtc emette "phandle"
-		# solo per i nodi referenziati, quindi un phandle su una cella MAC
-		# vuol dire che qualcuno ci punta.
+		# il WP a ogni scrittura). Il MAC ETH0 arriva al LAN9512 con
+		# nvmem-cells sulla cella mac-address@10 (alias ethernet0); ETH1
+		# non esiste sulla EGARE. dtc emette "phandle" solo per i nodi
+		# referenziati.
 		eeprom="$(echo "$i2c0" | sed -n '/eeprom@50 {/,/^\t\t\t};/p')"
 		echo "$eeprom" | grep -q 'nvmem-layout {' \
 			&& echo "$eeprom" | grep -q 'compatible = "fixed-layout";' \
@@ -322,15 +322,32 @@ if [ "$DTB_NAME" = suniv-f1c200s-egare.dtb ]; then
 			else
 				fail "DTB: cella $name non a $reg: $(echo "$node" | grep 'reg =' | tr -d '\t')"
 			fi
-			case "$name" in mac-address@*)
-				echo "$node" | grep -q 'phandle' \
-					&& fail "DTB: la cella $name e' referenziata (nvmem-cells verso un MAC)" ;;
-			esac
+			[ "$name" = mac-address@16 ] && echo "$node" | grep -q 'phandle' \
+				&& fail "DTB: la cella ETH1 mac-address@16 e' referenziata, ma la EGARE ha una sola porta"
 		done
 		# $'...': GNU grep non interpreta \t nelle ERE
 		echo "$eeprom" | grep -qE $'^\t\t\t\t(read-only|wp-gpios)[ ;]' \
 			&& fail "DTB: eeprom@50 con read-only o wp-gpios" \
 			|| pass "DTB: eeprom@50 scrivibile da Linux (niente read-only, niente wp-gpios)"
+		# Senza questo il LAN9512 usa un MAC casuale, diverso a ogni avvio.
+		if [ -x "$HOSTBIN/fdtget" ]; then
+			eth="$("$HOSTBIN/fdtget" -t s "$dtb" /aliases ethernet0 2>/dev/null)"
+			cell=/soc/i2c@1c27000/eeprom@50/nvmem-layout/mac-address@10
+			if [ -z "$eth" ]; then
+				fail "DTB: manca l'alias ethernet0 (MAC dell'EEPROM mai usato)"
+			elif [ "$("$HOSTBIN/fdtget" -t s "$dtb" "$eth" compatible 2>/dev/null)" != usb424,ec00 ]; then
+				fail "DTB: ethernet0 ($eth) non e' l'Ethernet del LAN9512 (usb424,ec00)"
+			elif [ "$("$HOSTBIN/fdtget" -t s "$dtb" "$eth" nvmem-cell-names 2>/dev/null)" = mac-address ] \
+				&& [ -n "$("$HOSTBIN/fdtget" -t x "$dtb" "$cell" phandle 2>/dev/null)" ] \
+				&& [ "$("$HOSTBIN/fdtget" -t x "$dtb" "$eth" nvmem-cells 2>/dev/null)" \
+				   = "$("$HOSTBIN/fdtget" -t x "$dtb" "$cell" phandle 2>/dev/null)" ]; then
+				pass "DTB: ethernet0 ($eth) prende il MAC da mac-address@10"
+			else
+				fail "DTB: ethernet0 ($eth) senza nvmem-cells \"mac-address\" verso mac-address@10"
+			fi
+		else
+			skip "fdtget non disponibile: MAC di ethernet0 non verificato"
+		fi
 	else
 		skip "dtc non disponibile: i2c0 ed EEPROM non verificati"
 	fi

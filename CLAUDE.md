@@ -244,5 +244,6 @@ rompe in silenzio senza bisogno di artefatti.
 | `boot: SD` senza SD avviabile | SD non avviabile ma con la nostra FAT inserita |
 | EGARE: `eth0` link su, `tx_packets` sale, `rx_packets` e `rx_errors` fermi a 0 | FIFO MUSB oltre 4 KiB: `patches/linux/0001-*` non applicata (sezione 8b di check) |
 | EGARE: `lsusb` vede solo il root hub | PE4 (`USB_SEL`) basso o MUSB non in host: hog e `dr_mode` nel DTS EGARE |
+| EGARE: `eth0` con MAC casuale, diverso a ogni avvio | EEPROM vergine o slot ETH0 non valido (`som-id show`), oppure `nvmem-cells`/alias `ethernet0` mancanti nel DTB (sezione 12 di check) |
 | `som-id: write rejected by the EEPROM` o `read-back differs` | pin WP dell'EEPROM alto (docs/EEPROM-ID.md) |
 | `rootfs: manca /boot/zImage` in `make check` | `BR2_LINUX_KERNEL_INSTALL_TARGET` attivato dopo la build del kernel: `make linux-reinstall && make` |

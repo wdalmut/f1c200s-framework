@@ -38,6 +38,8 @@
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
+		/* ETH0 del connettore: il MAC viene dall'EEPROM (cella mac_eth0) */
+		ethernet0 = &ethernet;
 	};
 };
 
@@ -195,9 +197,31 @@
 	};
 };
 
-/* Il DTS Lctech la mette in peripheral; qui dietro c'e' l'hub LAN9512. */
+/*
+ * Il DTS Lctech la mette in peripheral; qui dietro c'e' l'hub LAN9512, sulla
+ * porta 1 del root hub, con l'Ethernet sulla sua porta 1 (come sul Raspberry
+ * Pi B). Il nodo serve a dare all'Ethernet il MAC dell'EEPROM: smsc95xx lo
+ * legge da nvmem-cells (Linux scarta FF..FF, zero e multicast, ma non
+ * controlla magic e CRC del record). Senza, MAC casuale a ogni avvio.
+ */
 &usb_otg {
 	dr_mode = "host";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	hub@1 {
+		compatible = "usb424,9512";
+		reg = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethernet: ethernet@1 {
+			compatible = "usb424,ec00";
+			reg = <1>;
+			nvmem-cells = <&mac_eth0>;
+			nvmem-cell-names = "mac-address";
+		};
+	};
 };
 
 &i2c0 {
@@ -212,10 +236,10 @@
 
 		/*
 		 * Record di identificazione del modulo, schema v1.0
-		 * (docs/EEPROM-ID.md). Celle solo per leggerle da userspace:
-		 * niente nvmem-cells sul nodo Ethernet, il MAC lo passa U-Boot
-		 * con local-mac-address dopo aver verificato magic e CRC.
-		 * Niente read-only: la produzione scrive da Linux con som-id.
+		 * (docs/EEPROM-ID.md). mac_eth0 la usa l'Ethernet del LAN9512;
+		 * ETH1 non c'e' su questa board. Le altre celle sono per
+		 * userspace. Niente read-only: la produzione scrive da Linux con
+		 * som-id.
 		 */
 		nvmem-layout {
 			compatible = "fixed-layout";
@@ -223,7 +247,7 @@
 			#size-cells = <1>;
 
 			som-id@0 { reg = <0x00 0x40>; };
-			mac-address@10 { reg = <0x10 0x06>; };
+			mac_eth0: mac-address@10 { reg = <0x10 0x06>; };
 			mac-address@16 { reg = <0x16 0x06>; };
 			serial-number@1c { reg = <0x1c 0x0c>; };
 		};

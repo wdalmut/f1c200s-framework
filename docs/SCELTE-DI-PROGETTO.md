@@ -129,10 +129,14 @@ CRC16 e perché lo stesso parser andrà in U-Boot; vive in una repo propria
 qui si fissa solo il tag.
 
 I MAC stanno in due slot espliciti, uno per porta, invece di base + numero:
-nessun lettore deve supporre che siano contigui. Linux non li legge con
-`nvmem-cells`: con la `fixed-layout` del 6.12 un `mac-base` con offset non
-funziona, nvmem non controlla magic e CRC, e `local-mac-address` scritto da
-U-Boot ha comunque la precedenza. Una cella nvmem sul nodo Ethernet
-entrerebbe in gioco solo quando U-Boot ha scartato il record, cioè proprio
-quando non va usata. Design completo:
-[superpowers/specs/2026-11-28-eeprom-id-design.md](superpowers/specs/2026-11-28-eeprom-id-design.md).
+nessun lettore deve supporre che siano contigui. Grazie agli slot Linux li
+legge con `nvmem-cells` senza l'offset di `mac-base`, che la `fixed-layout`
+del 6.12 non applica. Si è scelto questo invece di U-Boot che verifica il
+record e scrive `local-mac-address`: costa molto meno (nessuna patch a
+U-Boot, nessun driver I2C in più) e si perdono il controllo di magic e CRC
+prima di usare il MAC e `serial#`. Il rischio residuo è un record corrotto
+con un MAC ancora plausibile in un'EEPROM protetta dal WP e verificata in
+produzione. U-Boot leggerà il record quando servirà a lui (SPL con più
+configurazioni DDR, carrier). Design:
+[superpowers/specs/2026-11-28-eeprom-id-design.md](superpowers/specs/2026-11-28-eeprom-id-design.md)
+e [superpowers/specs/2026-11-28-eeprom-mac-nvmem-design.md](superpowers/specs/2026-11-28-eeprom-mac-nvmem-design.md).
