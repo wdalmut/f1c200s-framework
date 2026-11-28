@@ -148,6 +148,9 @@ if [ -n "$kcfg" ] && [ -f "$kcfg" ]; then
 	chk 'CONFIG_MTD_CMDLINE_PARTS=y'
 	chk 'CONFIG_MTD_UBI=y'
 	chk 'CONFIG_UBIFS_FS=y'
+	# 3 UART, non 0: con RUNTIME_UARTS=0 la console 8250 non si registra.
+	chk 'CONFIG_SERIAL_8250_RUNTIME_UARTS=3'
+	chk '# CONFIG_LEGACY_PTYS is not set'
 	grep -q '^CONFIG_ARCH_MULTI_V7=y' "$kcfg" \
 		&& fail "kernel: ARCH_MULTI_V7 attivo — il binario non gira su ARM926EJ-S" \
 		|| pass "kernel: ARCH_MULTI_V7 disattivo"

@@ -12,10 +12,20 @@ CONFIG_ARCH_MULTI_V5=y
 CONFIG_MACH_SUNIV=y
 
 # Console seriale. Nel DTS della board serial0 = &uart1 (pin PA2/PA3),
-# quindi UART1 diventa ttyS0.
+# quindi UART1 diventa ttyS0. Sulla EGARE serial0 = &uart0 (PE0/PE1).
 CONFIG_SERIAL_8250=y
 CONFIG_SERIAL_8250_CONSOLE=y
 CONFIG_SERIAL_8250_DW=y
+
+# Il SoC ha 3 UART: ttyS0..2, numerati dagli alias serialN del DT. Il
+# default (8) crea ttyS3..7 vuoti. NON 0: con nr_uarts == 0
+# univ8250_console_init() esce con -ENODEV e la console sparisce.
+CONFIG_SERIAL_8250_RUNTIME_UARTS=3
+
+# PTY BSD legacy: 256 coppie /dev/ptyXY + /dev/ttyXY create a ogni boot,
+# che nessuno usa. Shell remote, screen e script usano /dev/ptmx e
+# /dev/pts (UNIX98_PTYS, che resta).
+# CONFIG_LEGACY_PTYS is not set
 
 # Boot da SD: p1 FAT (zImage + dtb), p2 ext4 (rootfs).
 CONFIG_MMC=y
