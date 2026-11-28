@@ -27,7 +27,20 @@
 	aliases {
 		serial0 = &uart0;
 		serial1 = &uart1;
+		serial2 = &uart2;
 	};
+};
+
+/*
+ * UART2 del connettore (pin 190/192): solo TX/RX, come da specifica. Sulla
+ * SoM e' uart2 su PD13 (TX) / PD14 (RX). Le alternative non vanno: PD15/
+ * PD16 (RTS/CTS di uart2) sono I2C2, PE7-PE10 sono spi1 (SPI0 del
+ * connettore).
+ */
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pd_pins>;
+	status = "okay";
 };
 
 &uart0 {
@@ -54,6 +67,11 @@
 	uart1_pa_rtscts_pins: uart1-pa-rtscts-pins {
 		pins = "PA0", "PA1", "PA2", "PA3";
 		function = "uart1";
+	};
+
+	uart2_pd_pins: uart2-pd-pins {
+		pins = "PD13", "PD14";
+		function = "uart2";
 	};
 
 	/* Il .dtsi definisce i2c0 solo su PD0/PD12. */

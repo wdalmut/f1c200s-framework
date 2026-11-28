@@ -326,6 +326,24 @@ if [ "$DTB_NAME" = suniv-f1c200s-egare.dtb ]; then
 		skip "dtc non disponibile: pin di uart1 non verificati"
 	fi
 
+	# --- 12c. EGARE: UART2 del connettore su PD13/PD14 ---------------------
+	# uart2 e' disabilitata nel .dtsi: senza il nodo EGARE ttyS2 non esiste.
+	if [ -x "$HOSTBIN/dtc" ]; then
+		dts="$("$HOSTBIN/dtc" -I dtb -O dts "$dtb" 2>/dev/null)"
+		uart2="$(echo "$dts" | sed -n '/serial@1c25800 {/,/^\t\t};/p')"
+		echo "$dts" | grep -q 'serial2 = "/soc/serial@1c25800";' \
+			&& pass "DTB: serial2 = uart2" || fail "DTB: serial2 non punta a uart2"
+		echo "$uart2" | grep -q 'status = "okay"' \
+			&& pass "DTB: uart2 attiva" || fail "DTB: uart2 non attiva"
+		ph="$(echo "$uart2" | sed -n 's/.*pinctrl-0 = <\(0x[0-9a-f]*\)>;.*/\1/p')"
+		pins="$(echo "$dts" | grep -B3 "phandle = <${ph:-none}>;" | sed -n 's/.*pins = \(.*\);/\1/p')"
+		[ "$pins" = '"PD13", "PD14"' ] \
+			&& pass "DTB: uart2 su PD13/PD14" \
+			|| fail "DTB: uart2 su ${pins:-?} invece di PD13/PD14"
+	else
+		skip "dtc non disponibile: uart2 non verificata"
+	fi
+
 	# --- 13. EGARE: LAN9512 dietro la MUSB ----------------------------------
 	# Con la MUSB in peripheral (default Lctech) o PE4 basso il LAN9512 non
 	# si vede, e senza smsc95xx si vede ma eth0 non compare: tutto in silenzio.

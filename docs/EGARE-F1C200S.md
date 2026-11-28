@@ -44,6 +44,13 @@ ancora nel DT, sta in [EGARE-SPEC-SODIMM.md](EGARE-SPEC-SODIMM.md).
   Dettagli in [EGARE-SPEC-SODIMM.md](EGARE-SPEC-SODIMM.md#uart1-con-rtscts).
 * **Da provare su board.**
 
+### UART2 del connettore
+
+* uart2 su PD13 (TX) / PD14 (RX), funzione `uart2`, solo TX/RX come vuole la
+  specifica: PD15/PD16, i suoi RTS/CTS, sono I2C2. È `ttyS2`
+  (`serial2 = &uart2`).
+* **Da provare su board.**
+
 ### SPI NAND Winbond W25N02KV
 
 * `xfel spinand` → `Found spi nand flash 'W25N02KV' with 268435456 bytes`

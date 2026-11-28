@@ -28,10 +28,12 @@ Stato: 2026-11-28.
 
 Dal DTS Lctech: SPI NAND su spi0 (PC0-PC3), mmc0, uart1, MUSB, PHY USB.
 Dal DTS EGARE: i2c0 su PE11/PE12 con l'EEPROM a 0x50, l'hog di `USB_SEL`
-(PE4), la MUSB in host e, dal 2026-11-28, la console su uart0 (vedi sotto).
+(PE4), la MUSB in host e, dal 2026-11-28, le tre UART: console su uart0 (vedi
+sotto), uart1 con RTS/CTS, uart2 su PD13/PD14. Gli alias `serial0..2`
+seguono i numeri del connettore: `ttyS0..2`.
 
-Fra i bus che la SoM porta al connettore, quelli descritti sono I2C0, UART0 e
-UART1 (con RTS/CTS).
+Fra i bus che la SoM porta al connettore, quelli descritti sono I2C0 e le tre
+UART: UART0 (console), UART1 (con RTS/CTS) e UART2.
 
 ## Mappa connettore → SoC → DT
 
@@ -39,7 +41,7 @@ UART1 (con RTS/CTS).
 |---|---|---|---|---|
 | UART0, console di debug | 205/207 | uart0, PE0/PE1 | ✅ console, verificata su board 2026-11-28 | — |
 | UART1 + RTS/CTS (RS-485) | 180-186 | uart1, PA2/PA3 + PA0 (RTS) / PA1 (CTS) | ✅ PA0-PA3, `uart-has-rtscts` (2026-11-28) | prova su board; RS-485 nel DT della carrier che monta il transceiver |
-| UART2 | 190/192 | uart2, PD13/PD14 | manca | gruppo `uart2` + `&uart2` |
+| UART2 | 190/192 | uart2, PD13 (TX) / PD14 (RX) | ✅ `ttyS2` (2026-11-28) | prova su board |
 | I2C0 + EEPROM | 211/213 | i2c0, PE11/PE12 | ✅ | layout nvmem dei 64 byte (seriale, MAC) |
 | I2C1 (touch) | 170/172 | i2c1, PD5/PD6 | manca | gruppo `i2c1` + `&i2c1` |
 | I2C2 (camera) | 174/176 | i2c2, PD15/PD16 | manca | gruppo `i2c2` + `&i2c2` |
@@ -60,7 +62,7 @@ UART1 (con RTS/CTS).
 | ETH0 MDI0/MDI1 + LED + CT | 3-11, 6-10 | LAN9512 | ✅ funziona, MAC casuale | nodo USB + MAC dall'EEPROM |
 | ETH1, DSI, CSI, I2S, CAN, ADC | — | — | — | NC: la SoM non ha display, camera né CAN |
 
-Le funzioni pinctrl citate (`uart2`, `i2c1`, `i2c2`, `spi1`, `pwm1`)
+Le funzioni pinctrl citate (`i2c1`, `i2c2`, `spi1`, `pwm1`)
 esistono nel driver per quei pin. Il `.dtsi` suniv non ha i gruppi: vanno
 scritti nel DTS EGARE, come già fatto per `i2c0-pe-pins`.
 
@@ -125,7 +127,7 @@ coincidono con il numero del SoC:
 * **PWM0 del connettore è il canale 1** di `pwmchip0`.
 
 UART e I2C invece coincidono: uartN e i2cN del SoC sono UARTn e I2Cn del
-connettore.
+connettore, e `ttySn` è UARTn.
 
 ## Note sulle righe da fare
 
