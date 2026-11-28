@@ -12,7 +12,29 @@ chain, layout NAND, trappole) vale [BOARD-FACTS.md](BOARD-FACTS.md).
 Le ragioni dell'organizzazione dei file sono nel
 [design](superpowers/specs/2026-11-27-board-egare-f1c200s-design.md).
 
+Il confronto con la specifica del connettore SODIMM 260-pin, e cosa manca
+ancora nel DT, sta in [EGARE-SPEC-SODIMM.md](EGARE-SPEC-SODIMM.md).
+
 ## Differenze hardware
+
+### Console su UART0 (PE0/PE1)
+
+* La specifica SODIMM mette la console di debug sulla UART0 del connettore
+  (pin 205/207), che sulla SoM è **uart0 su PE0/PE1** (pin 49/48 del QFN88;
+  schema SoM, foglio CPU). uart1 (PA2/PA3), la console della FTVOGUE, qui va
+  alla UART1 del connettore (pin 180/182), la porta RS-485.
+* SPL: `CONFIG_CONS_INDEX=1` nel [uboot.fragment](../external/board/egare-f1c200s/uboot.fragment).
+  U-Boot proper: `serial0 = &uart0` nel
+  [.dtsi](../external/board/egare-f1c200s/uboot/suniv-f1c200s-egare-u-boot.dtsi)
+  accodato al DT Lctech con `CONFIG_DEVICE_TREE_INCLUDES`. Kernel:
+  `serial0 = &uart0`, `serial1 = &uart1` nel DTS EGARE. `ttyS0` resta la
+  console, quindi bootargs e getty non cambiano; `ttyS1` è la UART1 del
+  connettore.
+* `make O=output-egare check` verifica `CONS_INDEX=1` e che l'alias `serial0`
+  punti a `serial@1c25000` sia nel DTB del kernel sia in `u-boot.dtb`
+  (2026-11-28: tutto ok).
+* **Verificato** (prova su board, 2026-11-28): con la build EGARE il boot
+  esce sulla UART0 del connettore.
 
 ### SPI NAND Winbond W25N02KV
 

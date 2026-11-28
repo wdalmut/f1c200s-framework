@@ -2,8 +2,9 @@
 // Copyright (C) 2026 Corley S.r.l.
 //
 // EGARE F1C200S: la Lctech Pi F1C200s piu' le differenze della board.
-// Tutto il resto (UART1, SPI NAND su spi0, mmc0, USB OTG) viene dal DTS
+// Tutto il resto (uart1, SPI NAND su spi0, mmc0, USB OTG) viene dal DTS
 // Lctech incluso qui sotto: le due board devono restare confrontabili.
+// La console invece e' su uart0 (PE0/PE1), non su uart1: vedi aliases.
 //
 // EEPROM ST M24C02-FMN su i2c0: SCK su PE11 (pin 38 del QFN88), SDA su
 // PE12 (pin 37), E0-E2 a GND -> 0x50. Verificata il 2026-11-27 con un DTB
@@ -14,6 +15,25 @@
 
 / {
 	model = "EGARE F1C200S";
+
+	/*
+	 * La console e' la UART0 del connettore SODIMM (pin 205/207), come
+	 * vuole la specifica del pinout: sulla SoM sono uart0 su PE0/PE1. Il
+	 * DTS Lctech mette serial0 = &uart1 (PA2/PA3), che qui e' la UART1 del
+	 * connettore (pin 180/182, la porta RS-485). Alias = numero del
+	 * connettore: ttyS0 console, ttyS1 UART1. stdout-path "serial0" viene
+	 * dal DTS Lctech e segue l'alias.
+	 */
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+	};
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pe_pins>;
+	status = "okay";
 };
 
 &pio {

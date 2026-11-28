@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 Corley S.r.l.
+//
+// EGARE F1C200S: differenze del DT di U-Boot rispetto a quello Lctech.
+//
+// U-Boot usa il DT upstream allwinner/suniv-f1c200s-lctech-pi (come la
+// FTVOGUE); questo file viene accodato da CONFIG_DEVICE_TREE_INCLUDES
+// (uboot.fragment EGARE). Buildroot lo copia in arch/arm/dts/ con
+// BR2_TARGET_UBOOT_CUSTOM_DTS_PATH, che e' nel percorso di include del DTC.
+//
+// La console della EGARE e' uart0 su PE0/PE1 (UART0 del connettore SODIMM,
+// pin 205/207). L'SPL non usa il DT: la console la sceglie
+// CONFIG_CONS_INDEX=1. U-Boot proper (DM_SERIAL) la prende da stdout-path,
+// cioe' "serial0" del DTS Lctech: qui serial0 diventa uart0. Le due cose
+// vanno cambiate insieme, altrimenti l'SPL parla su un pin e U-Boot
+// sull'altro.
+
+/ {
+	model = "EGARE F1C200S";
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+	};
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pe_pins>;
+	status = "okay";
+};

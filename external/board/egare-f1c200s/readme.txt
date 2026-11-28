@@ -6,16 +6,22 @@ confrontarla con quella. Questa directory contiene solo le differenze; il
 resto (patch SPL, fragment di base, U-Boot) viene da ../ftvogue-f1c200s/.
 
   dts/allwinner/suniv-f1c200s-egare.dts
-                   DTS Lctech Pi + i2c0 su PE11/PE12 + EEPROM a 0x50,
-                   MUSB in host e PE4 (USB_SEL) alto verso il LAN9512
+                   DTS Lctech Pi + console su uart0 (PE0/PE1), i2c0 su
+                   PE11/PE12 + EEPROM a 0x50, MUSB in host e PE4 (USB_SEL)
+                   alto verso il LAN9512
   linux.fragment   applicato dopo quello FTVOGUE: CONFIG_EEPROM_AT24,
                    smsc95xx (LAN9512), usbmon
-  uboot.fragment   applicato dopo quello FTVOGUE: solo il bootcmd, con il
-                   DTB di questa board
+  uboot.fragment   applicato dopo quello FTVOGUE: console su uart0
+                   (CONS_INDEX=1) e bootcmd con il DTB di questa board
+  uboot/suniv-f1c200s-egare-u-boot.dtsi
+                   accodato al DT U-Boot Lctech: serial0 = uart0
   genimage.cfg     layout dell'immagine SD (copia FTVOGUE, altro DTB)
 
-uboot.fragment e genimage.cfg devono restare uguali a quelli FTVOGUE a parte
-il nome del DTB: lo controlla la CI.
+La riga del bootcmd in uboot.fragment e genimage.cfg devono restare uguali a
+quelli FTVOGUE a parte il nome del DTB: lo controlla la CI.
+
+Console: UART0 del connettore SODIMM (pin 205/207, uart0 su PE0/PE1),
+115200 8N1, non UART1 come sulla FTVOGUE.
 
 Sempre con O=output-egare, altrimenti si sovrascrive la build FTVOGUE:
 

@@ -39,13 +39,15 @@ external/
   board/egare-f1c200s/                      solo le differenze, sopra ftvogue-f1c200s/
     dts/allwinner/suniv-f1c200s-egare.dts   DTS Lctech + i2c0 PE11/PE12 + EEPROM 0x50 + USB host/PE4
     linux.fragment                          dopo quello FTVOGUE: EEPROM_AT24, smsc95xx, usbmon
-    uboot.fragment                          dopo quello FTVOGUE: bootcmd con il DTB EGARE
+    uboot.fragment                          dopo quello FTVOGUE: console uart0 (CONS_INDEX=1), bootcmd con il DTB EGARE
+    uboot/suniv-f1c200s-egare-u-boot.dtsi   accodato al DT U-Boot Lctech: serial0 = uart0
     genimage.cfg                            copia FTVOGUE con il DTB EGARE
     readme.txt
 docs/
   BOARD-FACTS.md                            fatti verificati, con le fonti
   SCELTE-DI-PROGETTO.md                     perché è fatto così
   EGARE-F1C200S.md                          la board EGARE: differenze verificate
+  EGARE-SPEC-SODIMM.md                      EGARE contro la specifica SODIMM 260-pin: cosa manca nel DT
   check-image.sh                            verifica gli artefatti (make check)
   flash-nand.sh                             scrive la SPI NAND via xfel
   test-flash-nand.sh                        prova flash-nand.sh con un xfel finto (anche in CI)
@@ -160,6 +162,7 @@ make distclean              # cancella output/, .config E ANCHE la cache dl/
 | Cambiare il layout NAND | `CONFIG_SYS_SPI_U_BOOT_OFFS` e `CONFIG_MTDPARTS_DEFAULT` (uboot.fragment), `mtdparts=` nel bootcmd, `docs/flash-nand.sh`, sezione 9 di `check-image.sh` | `make uboot-reconfigure && make` |
 | Toccare le patch SPL | `board/ftvogue-f1c200s/patches/uboot/` | `make uboot-dirclean && make` |
 | Cambiare il DTS EGARE | `board/egare-f1c200s/dts/allwinner/suniv-f1c200s-egare.dts` — Buildroot lo copia nel kernel solo in fase di build: un `make` semplice tiene il DTB vecchio | `make O=output-egare linux-rebuild && make O=output-egare` |
+| Cambiare il DT di U-Boot EGARE | `board/egare-f1c200s/uboot/suniv-f1c200s-egare-u-boot.dtsi` — Buildroot lo copia in `arch/arm/dts/` a ogni build di U-Boot | `make O=output-egare uboot-rebuild && make O=output-egare` |
 | Cambiare qualcosa solo per la EGARE | `board/egare-f1c200s/` (DTS, fragment applicati dopo quelli FTVOGUE) | stesso flusso, con `O=output-egare` |
 | Cambiare il `bootcmd` o `genimage.cfg` FTVOGUE | anche la copia in `board/egare-f1c200s/`: la CI controlla che restino uguali a parte il DTB | ricostruire entrambe le board |
 | Bumpare Buildroot | `cd buildroot && git checkout <tag LTS>` + commit del submodule | build completa |
@@ -183,7 +186,9 @@ promemoria, perché sono gli errori che costano giornate:
    `patches/uboot/`: se un bump di U-Boot le rompe, va rifatto il porting, non
    tolte le patch.
 3. **La console è UART1 (PA2/PA3)** → `CONFIG_CONS_INDEX=2`. Se è sbagliato non
-   esce *nessun* carattere e la board sembra morta.
+   esce *nessun* carattere e la board sembra morta. Vale per la FTVOGUE: la
+   **EGARE** usa uart0 (PE0/PE1, UART0 del connettore SODIMM) → `CONS_INDEX=1`
+   **e** `serial0 = &uart0` nel DT di U-Boot e del kernel, sempre insieme.
 4. **Il kernel va forzato su ARMv5.** `sunxi_defconfig` è ARMv7 multiplatform;
    deve risultare `CONFIG_CPU_ARM926T=y`.
 5. **`CONFIG_BOOTCOMMAND` disattiva `boot.scr` ed `extlinux.conf`.**
@@ -200,7 +205,8 @@ make check
 ```
 
 Esegue `docs/check-image.sh`: header `eGON.BT0` a 8 KiB, layout partizioni,
-contenuto della FAT, `CONS_INDEX=2`, DRAM 64 MB, kernel ARMv5/`suniv`,
+contenuto della FAT, `CONS_INDEX` della board e stessa UART in SPL, U-Boot e
+kernel, DRAM 64 MB, kernel ARMv5/`suniv`,
 assenza di `sf read` nel `bootcmd`, `bootcmd` davvero compilato in
 `u-boot.bin`, `model` del DTB; per la NAND: patch SPL applicate, U-Boot che
 non sfora in UBI, geometria di `rootfs.ubi`, kernel e DTB in `/boot`. Aggiungi un controllo qui ogni volta che scopri
@@ -215,7 +221,8 @@ rompe in silenzio senza bisogno di artefatti.
 
 | Sintomo | Causa quasi certa |
 |---|---|
-| **Niente** sulla seriale, mai | `CONS_INDEX` ≠ 2, TX/RX non incrociati, o GND non in comune |
+| **Niente** sulla seriale, mai | `CONS_INDEX` sbagliato (FTVOGUE 2, EGARE 1), TX/RX non incrociati, o GND non in comune |
+| EGARE: esce l'SPL, poi silenzio da U-Boot | `CONS_INDEX` e `serial0` del DT di U-Boot su UART diverse (sezione 7b di check) |
 | Caratteri illeggibili | baudrate diverso da 115200 |
 | SPL parte poi si blocca | mappa DRAM da 32 MB (manca `SUNXI_MINIMUM_DRAM_MB=64`) |
 | `sf probe` fallisce | normale: la flash è NAND, non NOR |

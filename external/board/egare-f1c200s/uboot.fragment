@@ -2,9 +2,16 @@
 # Copyright (C) 2026 Corley S.r.l.
 #
 # Frammento EGARE, applicato DOPO ../ftvogue-f1c200s/uboot.fragment: U-Boot
-# e' lo stesso della FTVOGUE (DT di U-Boot compreso), cambia solo il DTB
-# che il bootcmd passa al kernel, in entrambi i rami.
-#
+# e' quello della FTVOGUE con due differenze, la console e il DTB che il
+# bootcmd passa al kernel.
+
+# Console su uart0 (PE0/PE1), la UART0 del connettore SODIMM, invece che su
+# uart1 (PA2/PA3) come sulla FTVOGUE. CONS_INDEX vale per l'SPL; per U-Boot
+# proper la console e' lo stdout-path del DT, che il .dtsi EGARE sposta su
+# uart0. Uno senza l'altro: SPL e U-Boot su UART diverse.
+CONFIG_CONS_INDEX=1
+CONFIG_DEVICE_TREE_INCLUDES="suniv-f1c200s-egare-u-boot.dtsi"
+
 # La riga e' una copia di quella FTVOGUE con il nome del DTB sostituito.
 # La CI (checks.yml) verifica che resti tale: se cambi il bootcmd FTVOGUE,
 # cambia anche questo.

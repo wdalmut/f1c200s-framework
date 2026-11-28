@@ -42,9 +42,14 @@ case "${#dtbs[@]}" in
 	0) fail "nessun DTB in $IMAGES"; exit 1 ;;
 	*) fail "piu' DTB in $IMAGES: ${dtbs[*]}"; exit 1 ;;
 esac
+# La console: FTVOGUE su uart1 (PA2/PA3, header TTL), EGARE su uart0
+# (PE0/PE1, UART0 del connettore SODIMM). CONS_INDEX vale per l'SPL, il
+# nodo per U-Boot proper e kernel (alias serial0 / stdout-path).
 case "$DTB_NAME" in
-	suniv-f1c200s-lctech-pi.dtb) MODEL="Lctech Pi F1C200s" ;;
-	suniv-f1c200s-egare.dtb)     MODEL="EGARE F1C200S" ;;
+	suniv-f1c200s-lctech-pi.dtb)
+		MODEL="Lctech Pi F1C200s"; CONS_INDEX=2; CONSOLE_NODE=serial@1c25400 ;;
+	suniv-f1c200s-egare.dtb)
+		MODEL="EGARE F1C200S";     CONS_INDEX=1; CONSOLE_NODE=serial@1c25000 ;;
 	*) fail "DTB sconosciuto: $DTB_NAME"; exit 1 ;;
 esac
 echo "  board: $MODEL ($DTB_NAME)"
@@ -92,9 +97,10 @@ fi
 ucfg="$(ls -d "$BUILD"/uboot-*/.config 2>/dev/null | head -1)"
 if [ -n "$ucfg" ] && [ -f "$ucfg" ]; then
 	chk() { grep -q "^$1\$" "$ucfg" && pass "u-boot: $1" || fail "u-boot: atteso $1"; }
-	chk 'CONFIG_CONS_INDEX=2'
+	chk "CONFIG_CONS_INDEX=$CONS_INDEX"
 	chk 'CONFIG_SUNXI_MINIMUM_DRAM_MB=64'
-	# DT di U-Boot: e' quello Lctech per tutte le board, anche la EGARE.
+	# DT di U-Boot: la base e' quella Lctech per tutte le board; la EGARE ci
+	# accoda il suo .dtsi (console su uart0), controllato nella sezione 7.
 	chk 'CONFIG_DEFAULT_DEVICE_TREE="allwinner/suniv-f1c200s-lctech-pi"'
 	chk 'CONFIG_SPL_SPI_SUNXI=y'
 	chk 'CONFIG_SPL_SPI_SUNXI_NAND=y'
@@ -175,6 +181,33 @@ elif [ -f "$dtb" ]; then
 	skip "dtc non disponibile: model del DTB non verificato"
 else
 	fail "DTB assente da $IMAGES"
+fi
+
+# --- 7b. console: stessa UART in SPL, U-Boot e kernel ------------------------
+# L'SPL la prende da CONS_INDEX (sezione 4), U-Boot proper e kernel dall'alias
+# serial0 del loro DT. Se uno dei tre diverge, la console si interrompe a
+# meta' boot: SPL visibile e poi silenzio, o U-Boot visibile e kernel muto.
+console_chk() {	# $1 = etichetta, $2 = dtb
+	local dts alias
+	dts="$("$HOSTBIN/dtc" -I dtb -O dts "$2" 2>/dev/null)"
+	alias="$(echo "$dts" | sed -n 's/^[[:space:]]*serial0 = "\(.*\)";/\1/p' | head -1)"
+	[ "$alias" = "/soc/$CONSOLE_NODE" ] \
+		&& pass "$1: serial0 = $alias" \
+		|| fail "$1: serial0 = \"${alias:-?}\" invece di /soc/$CONSOLE_NODE"
+	echo "$dts" | sed -n "/$CONSOLE_NODE {/,/^\t\t};/p" | grep -q 'status = "okay"' \
+		&& pass "$1: $CONSOLE_NODE attivo" \
+		|| fail "$1: $CONSOLE_NODE non attivo"
+}
+udtb="$(ls -d "$BUILD"/uboot-*/u-boot.dtb 2>/dev/null | head -1)"
+if [ -x "$HOSTBIN/dtc" ]; then
+	[ -f "$dtb" ] && console_chk "DTB kernel" "$dtb"
+	if [ -n "$udtb" ] && [ -f "$udtb" ]; then
+		console_chk "DTB U-Boot" "$udtb"
+	else
+		skip "u-boot.dtb non trovato: console di U-Boot proper non verificata"
+	fi
+else
+	skip "dtc non disponibile: console nei DT non verificata"
 fi
 
 # --- 8. l'SPL contiene davvero il lettore SPI NAND ---------------------------

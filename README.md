@@ -200,6 +200,9 @@ Login: `root`, senza password.
 > Se non esce **nessun** carattere, il primo sospetto non è la board: è la UART.
 > Questa board parla su UART1 (PA2/PA3), non su UART0. Vedi
 > [BOARD-FACTS §3](docs/BOARD-FACTS.md).
+>
+> La **EGARE** invece parla su **UART0** (PE0/PE1, pin 205/207 del connettore
+> SODIMM): vedi [EGARE-F1C200S.md](docs/EGARE-F1C200S.md).
 
 ## Recovery via FEL
 
