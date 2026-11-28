@@ -122,6 +122,10 @@ ancora nel DT, sta in [EGARE-SPEC-SODIMM.md](EGARE-SPEC-SODIMM.md).
 * È l'EEPROM di identificazione del modulo (schema v1.0,
   [EEPROM-ID.md](EEPROM-ID.md)): `som-id` nel rootfs la legge e la scrive,
   e il DTS ne dichiara le celle nvmem (`/sys/bus/nvmem/devices/*/cells/`).
+  **Verificato** (prova su board, 2026-11-28): `som-id` funziona sulla
+  EGARE con la build EGARE avviata da SD (package `som-id` 1.0.0, comandi
+  di [EEPROM-ID.md](EEPROM-ID.md)). Prodotto e MAC scritti sono valori di
+  prova.
 
 ### Porte USB
 
