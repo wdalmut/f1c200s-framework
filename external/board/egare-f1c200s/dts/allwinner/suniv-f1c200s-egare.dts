@@ -36,7 +36,26 @@
 	status = "okay";
 };
 
+/*
+ * UART1 del connettore (pin 180-186): TX, RX, RTS, CTS. Sulla SoM sono
+ * PA2/PA3 piu' PA0 (RTS) e PA1 (CTS), tutti con la funzione uart1. Il DTS
+ * Lctech mette solo PA2/PA3. Per la specifica RTS serve tipicamente a
+ * pilotare il DE di un transceiver RS-485 sulla carrier: la modalita'
+ * RS-485 non si accende qui ma da userspace (ioctl TIOCSRS485; 8250_dw la
+ * emula via software se la UART non la ha in hardware) o nel DT di una
+ * carrier che monta il transceiver.
+ */
+&uart1 {
+	pinctrl-0 = <&uart1_pa_rtscts_pins>;
+	uart-has-rtscts;
+};
+
 &pio {
+	uart1_pa_rtscts_pins: uart1-pa-rtscts-pins {
+		pins = "PA0", "PA1", "PA2", "PA3";
+		function = "uart1";
+	};
+
 	/* Il .dtsi definisce i2c0 solo su PD0/PD12. */
 	i2c0_pe_pins: i2c0-pe-pins {
 		pins = "PE11", "PE12";

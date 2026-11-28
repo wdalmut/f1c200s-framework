@@ -31,14 +31,14 @@ Dal DTS EGARE: i2c0 su PE11/PE12 con l'EEPROM a 0x50, l'hog di `USB_SEL`
 (PE4), la MUSB in host e, dal 2026-11-28, la console su uart0 (vedi sotto).
 
 Fra i bus che la SoM porta al connettore, quelli descritti sono I2C0, UART0 e
-UART1 (senza RTS/CTS).
+UART1 (con RTS/CTS).
 
 ## Mappa connettore → SoC → DT
 
 | Connettore (spec) | Pin | SoC (schema SoM) | Nel DT | Da fare |
 |---|---|---|---|---|
 | UART0, console di debug | 205/207 | uart0, PE0/PE1 | ✅ console, verificata su board 2026-11-28 | — |
-| UART1 + RTS/CTS (RS-485) | 180-186 | uart1, PA2/PA3 + PA0 (RTS) / PA1 (CTS) | attivo, solo TX/RX | gruppo PA0-PA3 (funzione `uart1`), `uart-has-rtscts` o RS-485 |
+| UART1 + RTS/CTS (RS-485) | 180-186 | uart1, PA2/PA3 + PA0 (RTS) / PA1 (CTS) | ✅ PA0-PA3, `uart-has-rtscts` (2026-11-28) | prova su board; RS-485 nel DT della carrier che monta il transceiver |
 | UART2 | 190/192 | uart2, PD13/PD14 | manca | gruppo `uart2` + `&uart2` |
 | I2C0 + EEPROM | 211/213 | i2c0, PE11/PE12 | ✅ | layout nvmem dei 64 byte (seriale, MAC) |
 | I2C1 (touch) | 170/172 | i2c1, PD5/PD6 | manca | gruppo `i2c1` + `&i2c1` |
@@ -60,7 +60,7 @@ UART1 (senza RTS/CTS).
 | ETH0 MDI0/MDI1 + LED + CT | 3-11, 6-10 | LAN9512 | ✅ funziona, MAC casuale | nodo USB + MAC dall'EEPROM |
 | ETH1, DSI, CSI, I2S, CAN, ADC | — | — | — | NC: la SoM non ha display, camera né CAN |
 
-Le funzioni pinctrl citate (`uart1`, `uart2`, `i2c1`, `i2c2`, `spi1`, `pwm1`)
+Le funzioni pinctrl citate (`uart2`, `i2c1`, `i2c2`, `spi1`, `pwm1`)
 esistono nel driver per quei pin. Il `.dtsi` suniv non ha i gruppi: vanno
 scritti nel DTS EGARE, come già fatto per `i2c0-pe-pins`.
 
@@ -86,6 +86,31 @@ puntino alla stessa UART.
 
 **Verificato su board** (2026-11-28): il boot esce sulla UART0 del
 connettore.
+
+## UART1 con RTS/CTS
+
+La UART1 del connettore è la porta che la specifica pensa per l'RS-485: RTS
+pilota il DE del transceiver. Sulla carrier EGARE dietro i pin 180-186 c'è
+solo un header, nessun transceiver. Il DTS EGARE quindi descrive soltanto
+quello che sta sulla SoM:
+
+* gruppo `uart1-pa-rtscts-pins` con PA0 (RTS), PA1 (CTS), PA2 (TX), PA3 (RX),
+  funzione `uart1`, al posto di `uart1_pa_pins` del DTS Lctech, che ha solo
+  PA2/PA3;
+* `uart-has-rtscts`.
+
+La modalità RS-485 non è accesa nel DT. Un'applicazione la accende con
+l'ioctl `TIOCSRS485`. `8250_dw` la emula via software (em485, toggling di
+RTS) se la UART non ha l'RS-485 in hardware (`dw8250_setup_port()` in
+`8250_dwlib.c`). Una carrier con il transceiver la accende nel suo DT con
+`linux,rs485-enabled-at-boot-time`, e se serve `rs485-rts-active-low`.
+
+CTS non ha pull-up né sulla SoM né nel DT: con l'header scollegato, attivare
+il flow control (`crtscts`) può bloccare la trasmissione.
+
+`make O=output-egare check` (sezione 12b) verifica gruppo e proprietà nel
+DTB. **Da provare su board**, per esempio con un loopback sull'header (TX su
+RX, RTS su CTS).
 
 ## Numeri del connettore e numeri del SoC
 

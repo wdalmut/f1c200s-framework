@@ -305,6 +305,24 @@ if [ "$DTB_NAME" = suniv-f1c200s-egare.dtb ]; then
 		skip "config del kernel non trovata: EEPROM_AT24 non verificato"
 	fi
 
+	# --- 12b. EGARE: UART1 del connettore con RTS/CTS -----------------------
+	# Il DTS Lctech mette uart1 solo su PA2/PA3: senza il gruppo EGARE la
+	# porta funziona ma RTS (PA0) e CTS (PA1) restano GPIO, e un transceiver
+	# RS-485 sulla carrier non vede mai il DE.
+	if [ -x "$HOSTBIN/dtc" ]; then
+		dts="$("$HOSTBIN/dtc" -I dtb -O dts "$dtb" 2>/dev/null)"
+		uart1="$(echo "$dts" | sed -n '/serial@1c25400 {/,/^\t\t};/p')"
+		echo "$uart1" | grep -q 'uart-has-rtscts' \
+			&& pass "DTB: uart1 con uart-has-rtscts" || fail "DTB: uart1 senza uart-has-rtscts"
+		ph="$(echo "$uart1" | sed -n 's/.*pinctrl-0 = <\(0x[0-9a-f]*\)>;.*/\1/p')"
+		pins="$(echo "$dts" | grep -B3 "phandle = <${ph:-none}>;" | sed -n 's/.*pins = \(.*\);/\1/p')"
+		[ "$pins" = '"PA0", "PA1", "PA2", "PA3"' ] \
+			&& pass "DTB: uart1 su PA0-PA3 (TX, RX, RTS, CTS)" \
+			|| fail "DTB: uart1 su ${pins:-?} invece di PA0-PA3"
+	else
+		skip "dtc non disponibile: pin di uart1 non verificati"
+	fi
+
 	# --- 13. EGARE: LAN9512 dietro la MUSB ----------------------------------
 	# Con la MUSB in peripheral (default Lctech) o PE4 basso il LAN9512 non
 	# si vede, e senza smsc95xx si vede ma eth0 non compare: tutto in silenzio.

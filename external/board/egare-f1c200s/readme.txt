@@ -6,9 +6,9 @@ confrontarla con quella. Questa directory contiene solo le differenze; il
 resto (patch SPL, fragment di base, U-Boot) viene da ../ftvogue-f1c200s/.
 
   dts/allwinner/suniv-f1c200s-egare.dts
-                   DTS Lctech Pi + console su uart0 (PE0/PE1), i2c0 su
-                   PE11/PE12 + EEPROM a 0x50, MUSB in host e PE4 (USB_SEL)
-                   alto verso il LAN9512
+                   DTS Lctech Pi + console su uart0 (PE0/PE1), uart1 con
+                   RTS/CTS (PA0-PA3), i2c0 su PE11/PE12 + EEPROM a 0x50,
+                   MUSB in host e PE4 (USB_SEL) alto verso il LAN9512
   linux.fragment   applicato dopo quello FTVOGUE: CONFIG_EEPROM_AT24,
                    smsc95xx (LAN9512), usbmon
   uboot.fragment   applicato dopo quello FTVOGUE: console su uart0

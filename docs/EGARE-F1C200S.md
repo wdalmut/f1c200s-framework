@@ -36,6 +36,14 @@ ancora nel DT, sta in [EGARE-SPEC-SODIMM.md](EGARE-SPEC-SODIMM.md).
 * **Verificato** (prova su board, 2026-11-28): con la build EGARE il boot
   esce sulla UART0 del connettore.
 
+### UART1 del connettore con RTS/CTS
+
+* uart1 usa PA0 (RTS), PA1 (CTS), PA2 (TX), PA3 (RX), tutti con la funzione
+  `uart1` (`pinctrl-suniv-f1c100s.c`), e ha `uart-has-rtscts`. È `ttyS1`.
+* Sulla carrier c'è solo l'header: la modalità RS-485 non è accesa nel DT.
+  Dettagli in [EGARE-SPEC-SODIMM.md](EGARE-SPEC-SODIMM.md#uart1-con-rtscts).
+* **Da provare su board.**
+
 ### SPI NAND Winbond W25N02KV
 
 * `xfel spinand` → `Found spi nand flash 'W25N02KV' with 268435456 bytes`
