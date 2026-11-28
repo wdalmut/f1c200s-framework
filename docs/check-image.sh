@@ -348,6 +348,32 @@ if [ "$DTB_NAME" = suniv-f1c200s-egare.dtb ]; then
 		bus_chk i2c1 i2c@1c27400 '"PD5", "PD6"' 'I2C1 del connettore'
 		bus_chk i2c2 i2c@1c27800 '"PD15", "PD16"' 'I2C2 del connettore'
 		bus_chk spi1 spi@1c06000 '"PE7", "PE8", "PE9", "PE10"' 'SPI0 del connettore'
+		# PWM0 del connettore: canale 1 su PE6. Niente alias possibile.
+		pwm="$(echo "$dts" | sed -n '/pwm@1c21000 {/,/^\t\t};/p')"
+		echo "$pwm" | grep -q 'status = "okay"' \
+			&& pass "DTB: pwm@1c21000 attivo (PWM0 del connettore = canale 1)" \
+			|| fail "DTB: pwm@1c21000 non attivo"
+		ph="$(echo "$pwm" | sed -n 's/.*pinctrl-0 = <\(0x[0-9a-f]*\)>;.*/\1/p')"
+		pins="$(echo "$dts" | grep -B3 "phandle = <${ph:-none}>;" | sed -n 's/.*pins = \(.*\);/\1/p')"
+		[ "$pins" = '"PE6"' ] \
+			&& pass "DTB: pwm su PE6" || fail "DTB: pwm su ${pins:-?} invece di PE6"
+		# GPIO0..7 del connettore: il nome deve stare sulla linea giusta
+		# (banco * 32 + pin). Un "" in piu' o in meno sposta tutti i nomi.
+		# dtc la stampa come stringhe, o come byte [00 47 ...] se la prima e'
+		# vuota: si leggono entrambe, una linea per nome.
+		names="$(echo "$dts" | sed -n 's/^[[:space:]]*gpio-line-names = \(.*\);/\1/p')"
+		case "$names" in
+			\[*) names="$(printf '%b' "$(echo "$names" | tr -d '[]' \
+				| sed 's/\([0-9a-f][0-9a-f]\)/\\x\1/g; s/ //g')" | tr '\0' '\n')" ;;
+			*) names="$(echo "$names" | tr ',' '\n' | sed 's/^ *"//; s/"$//')" ;;
+		esac
+		bad=0
+		for l in GPIO0:96 GPIO1:97 GPIO2:98 GPIO3:99 GPIO4:100 GPIO5:113 GPIO6:114 GPIO7:115; do
+			n="${l%%:*}" i="${l##*:}"
+			got="$(echo "$names" | sed -n "$((i + 1))p")"
+			[ "$got" = "$n" ] || { fail "DTB: linea $i e' \"${got:-?}\" invece di $n"; bad=1; }
+		done
+		[ "$bad" = 0 ] && pass "DTB: gpio-line-names GPIO0..7 su PD0-PD4, PD17-PD19"
 		# La NAND deve restare il bus 0: i bootargs dicono mtdparts=spi0.0.
 		echo "$dts" | grep -q '^[[:space:]]*spi0 = "/soc/spi@1c05000";' \
 			&& pass "DTB: spi0 = spi@1c05000 (SPI NAND, mtdparts=spi0.0)" \

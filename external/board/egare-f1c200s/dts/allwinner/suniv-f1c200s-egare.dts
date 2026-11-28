@@ -105,7 +105,50 @@
 	uart-has-rtscts;
 };
 
+/*
+ * PWM0 del connettore (pin 210) = canale 1 del PWM del SoC, su PE6 (schema
+ * SoM: label PWM1). Il canale non si rinumera: il kernel non ha alias per
+ * la PWM, e i canali sono fissi nell'hardware. Da Linux e' pwmchip0
+ * canale 1, nel DT di una carrier <&pwm 1 periodo polarita'>. Il canale 0
+ * non e' sul connettore e non e' muxato.
+ */
+&pwm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm1_pe_pins>;
+	status = "okay";
+};
+
 &pio {
+	/*
+	 * Nomi delle linee (gpioinfo, gpioset -c gpiochip0 GPIO3=1). Indice =
+	 * banco * 32 + pin, da PA0: i GPIO0..7 del connettore SODIMM (pin
+	 * 223-241) e i segnali della SoM che sono GPIO puri. GPIO8..19 non
+	 * sono popolati su questa SoM.
+	 */
+	gpio-line-names =
+		"", "", "", "", "", "", "", "",	/* PA0-PA7 */
+		"", "", "", "", "", "", "", "",	/* PA8-PA15 */
+		"", "", "", "", "", "", "", "",	/* PA16-PA23 */
+		"", "", "", "", "", "", "", "",	/* PA24-PA31 */
+		"", "", "", "", "", "", "", "",	/* PB0-PB7 */
+		"", "", "", "", "", "", "", "",	/* PB8-PB15 */
+		"", "", "", "", "", "", "", "",	/* PB16-PB23 */
+		"", "", "", "", "", "", "", "",	/* PB24-PB31 */
+		"", "", "", "", "", "", "", "",	/* PC0-PC7 */
+		"", "", "", "", "", "", "", "",	/* PC8-PC15 */
+		"", "", "", "", "", "", "", "",	/* PC16-PC23 */
+		"", "", "", "", "", "", "", "",	/* PC24-PC31 */
+		"GPIO0", "GPIO1", "GPIO2", "GPIO3", "GPIO4", "", "", "",	/* PD0-PD7 */
+		"", "", "", "", "", "", "", "",	/* PD8-PD15 */
+		"", "GPIO5", "GPIO6", "GPIO7", "", "SD0_CD#", "", "",	/* PD16-PD23 */
+		"", "", "", "", "", "", "", "",	/* PD24-PD31 */
+		"", "", "USB0_VBUS", "USB0_ID", "USB_SEL";	/* PE0-PE4 */
+
+	pwm1_pe_pins: pwm1-pe-pins {
+		pins = "PE6";
+		function = "pwm1";
+	};
+
 	uart1_pa_rtscts_pins: uart1-pa-rtscts-pins {
 		pins = "PA0", "PA1", "PA2", "PA3";
 		function = "uart1";

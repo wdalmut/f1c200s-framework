@@ -33,9 +33,9 @@ sotto), uart1 con RTS/CTS, uart2 su PD13/PD14; i2c1 e i2c2; spi1. Gli alias
 `serial0..2` e `i2c0..2` seguono i numeri del connettore (`ttyS0..2`,
 `/dev/i2c-0..2`); `spi0`/`spi1` fissano la NAND sul bus 0.
 
-Fra i bus che la SoM porta al connettore, quelli descritti sono le tre UART
-(UART0 console, UART1 con RTS/CTS, UART2), i tre I2C e SPI0. Mancano PWM0,
-i nomi dei GPIO e il card detect di SD0.
+Fra le funzioni che la SoM porta al connettore, quelle descritte sono le tre
+UART (UART0 console, UART1 con RTS/CTS, UART2), i tre I2C, SPI0, PWM0 e i
+GPIO0..7 con il loro nome. Manca il card detect di SD0.
 
 ## Mappa connettore → SoC → DT
 
@@ -49,9 +49,9 @@ i nomi dei GPIO e il card detect di SD0.
 | I2C2 (camera) | 174/176 | i2c2, PD15 (SCK) / PD16 (SDA), pull-up R27/R18 | ✅ `/dev/i2c-2` (2026-11-28) | prova su board |
 | SPI0 | 148-154 | **spi1**, PE7 (CS) / PE8 (MOSI) / PE9 (CLK) / PE10 (MISO) | ✅ bus 1, senza periferiche (2026-11-28) | periferiche nel DT della carrier; prova su board |
 | SPI1 | 160-166 | — | — | NC |
-| PWM0 | 210 † | **canale PWM1**, PE6 | `&pwm` disabilitato | gruppo `pwm1` + `&pwm` |
-| GPIO0..4 | 223-233 | PD0-PD4 | senza nome | `gpio-line-names` |
-| GPIO5..7 | 235-241 | PD17-PD19 | senza nome | `gpio-line-names` |
+| PWM0 | 210 | **canale 1** del PWM, PE6 | ✅ `pwmchip0` canale 1, verificato su board 2026-11-28 | — |
+| GPIO0..4 | 223-233 | PD0-PD4 | ✅ `gpio-line-names`, verificato su board 2026-11-28 | — |
+| GPIO5..7 | 235-241 | PD17-PD19 | ✅ `gpio-line-names`, verificato su board 2026-11-28 | — |
 | GPIO8..19 | — | — | — | NC |
 | SD0 | 111-127 | mmc0, PF0-PF5 | ✅ | — |
 | SD0_CD# | 58 | PD21 | `broken-cd` (DTS Lctech) | `cd-gpios = <&pio 3 21 (GPIO_ACTIVE_LOW \| GPIO_PULL_UP)>` † |
@@ -64,9 +64,8 @@ i nomi dei GPIO e il card detect di SD0.
 | ETH0 MDI0/MDI1 + LED + CT | 3-11, 6-10 | LAN9512 | ✅ funziona, MAC casuale | nodo USB + MAC dall'EEPROM |
 | ETH1, DSI, CSI, I2S, CAN, ADC | — | — | — | NC: la SoM non ha display, camera né CAN |
 
-La funzione pinctrl ancora da usare (`pwm1` su PE6)
-esiste nel driver. Il `.dtsi` suniv non ha il gruppo: va scritto nel DTS
-EGARE, come quelli di UART, I2C e SPI.
+Il `.dtsi` suniv non ha i gruppi pinctrl di questi pin: sono tutti nel DTS
+EGARE.
 
 ## Console su UART0
 
@@ -135,6 +134,34 @@ sensore su I2C2 o un chip SPI, le dichiara il DT della carrier che le monta.
 `make O=output-egare check` (sezione 12c) verifica per ciascun bus alias,
 nodo attivo e pin, e che `spi0` resti la NAND.
 
+## PWM0 e GPIO
+
+**PWM0** (pin 210) è il canale 1 del PWM su PE6: il DTS accende il
+controller e mette in mux solo PE6. Il canale 0 non è sul connettore, e i
+suoi pin (PA2, PE12) servono a UART1 e I2C0. Per la numerazione vedi sotto.
+
+**GPIO0..7** (pin 223-241) hanno il nome della specifica in
+`gpio-line-names` sul controller `pio`. L'indice di ogni nome è
+banco × 32 + pin a partire da PA0 (`pinctrl-sunxi.c`: `PINS_PER_BANK` 32,
+`pin_base` 0), quindi PD0 = 96 e PD17 = 113. Hanno un nome anche i segnali
+della SoM che sono GPIO puri: `SD0_CD#` (PD21), `USB0_VBUS` (PE2),
+`USB0_ID` (PE3), `USB_SEL` (PE4). GPIO8..19 non sono popolati.
+
+Nel kernel `GPIO_SYSFS` è spento: da shell si usano i tool di libgpiod,
+aggiunti alla build EGARE (`BR2_PACKAGE_LIBGPIOD2_TOOLS`):
+
+```sh
+gpioinfo                       # tutte le linee, con nome e consumer
+gpioget -c gpiochip0 GPIO3     # legge GPIO3 del connettore
+gpioset -c gpiochip0 GPIO3=1   # lo porta alto (finché il comando gira)
+```
+
+**Verificato su board** (2026-11-28): PWM0 e GPIO0..7 funzionano.
+
+`make O=output-egare check` (sezione 12c) verifica che la PWM sia attiva su
+PE6 e che ogni nome GPIO0..7 stia sulla linea giusta: un `""` in più o in
+meno sposterebbe tutti i nomi.
+
 ## Numeri del connettore e numeri del SoC
 
 La specifica nomina i bus con il numero del connettore. Due di questi non
@@ -148,7 +175,12 @@ coincidono con il numero del SoC:
   `mtdparts=spi0.0`. Un alias `spi0 = &spi1` darebbe il numero del
   connettore, ma toglierebbe il bus 0 alla NAND: meglio dichiararlo nel
   datasheet.
-* **PWM0 del connettore è il canale 1** di `pwmchip0`.
+* **PWM0 del connettore è il canale 1** di `pwmchip0`, e non si può
+  rinumerare. Il core PWM del kernel non legge alias (`drivers/pwm/core.c`
+  numera i chip con un IDR), e il numero del canale è quello dell'hardware:
+  il blocco PWM ha due canali, PE6 è il canale 1 e il canale 0 non arriva al
+  connettore. Nel DT di una carrier: `pwms = <&pwm 1 periodo polarità>`; da
+  sysfs: `echo 1 > /sys/class/pwm/pwmchip0/export`.
 
 UART e I2C invece coincidono: uartN e i2cN del SoC sono UARTn e I2Cn del
 connettore, e `ttySn` è UARTn.

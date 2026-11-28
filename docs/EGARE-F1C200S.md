@@ -61,6 +61,15 @@ ancora nel DT, sta in [EGARE-SPEC-SODIMM.md](EGARE-SPEC-SODIMM.md).
 * Dettagli in [EGARE-SPEC-SODIMM.md](EGARE-SPEC-SODIMM.md#i2c1-i2c2-e-spi0).
   **Da provare su board** (`i2cdetect -y 1`, `i2cdetect -y 2`).
 
+### PWM0 e GPIO del connettore
+
+* PWM0 del connettore = canale 1 del PWM su PE6: `pwmchip0` canale 1. Non
+  esiste un alias che lo rinumeri.
+* GPIO0..7 = PD0-PD4, PD17-PD19, con il nome in `gpio-line-names`; nell'immagine
+  ci sono i tool di libgpiod (`gpioinfo`, `gpioget`, `gpioset`).
+* Dettagli in [EGARE-SPEC-SODIMM.md](EGARE-SPEC-SODIMM.md#pwm0-e-gpio).
+* **Verificato** (prova su board, 2026-11-28): PWM0 e GPIO0..7 funzionano.
+
 ### SPI NAND Winbond W25N02KV
 
 * `xfel spinand` → `Found spi nand flash 'W25N02KV' with 268435456 bytes`
