@@ -1,0 +1,62 @@
+From: f1c200s-framework <noreply@localhost>
+Subject: [PATCH] usb: musb: sunxi: fit the suniv FIFO layout in 4 KiB
+
+The F1C100s/F1C200s OTG FIFO is SRAM D, 4 KiB, but suniv uses the 5eps
+layout (64 + 10 * 512 = 5184 bytes) with ram_bits = 11 (8 KiB). Endpoints
+placed past 4 KiB do not work: in host mode behind a LAN9512 hub the
+smsc95xx bulk-in lands on EP4 RX (3648..4159) and never completes, while
+control, bulk-out and interrupt-in (all below 4 KiB) work.
+
+Give suniv its own layout: three 512-byte pairs for bulk, two 64-byte
+pairs that musb_schedule() picks for interrupt endpoints, 3392 bytes.
+
+---
+--- a/drivers/usb/musb/sunxi.c	2026-11-28 08:09:17.747727921 +0100
++++ b/drivers/usb/musb/sunxi.c	2026-11-28 08:09:17.759497301 +0100
+@@ -674,6 +674,37 @@
+ 	.ram_bits	= SUNXI_MUSB_RAM_BITS,
+ };
+ 
++/*
++ * F1C100s/F1C200s (suniv): the OTG FIFO is SRAM D, 4 KiB (see
++ * suniv-f1c100s.dtsi). The 5eps layout needs 64 + 10 * 512 = 5184 bytes:
++ * EP4 RX straddles the end of the RAM and EP5 lies past it, so a bulk-in
++ * scheduled there never completes. Keep three 512-byte pairs for bulk and
++ * two 64-byte pairs for interrupt endpoints: 64 + 6 * 512 + 4 * 64 = 3392.
++ */
++static struct musb_fifo_cfg sunxi_musb_mode_cfg_suniv[] = {
++	MUSB_EP_FIFO_SINGLE(1, FIFO_TX, 512),
++	MUSB_EP_FIFO_SINGLE(1, FIFO_RX, 512),
++	MUSB_EP_FIFO_SINGLE(2, FIFO_TX, 512),
++	MUSB_EP_FIFO_SINGLE(2, FIFO_RX, 512),
++	MUSB_EP_FIFO_SINGLE(3, FIFO_TX, 512),
++	MUSB_EP_FIFO_SINGLE(3, FIFO_RX, 512),
++	MUSB_EP_FIFO_SINGLE(4, FIFO_TX, 64),
++	MUSB_EP_FIFO_SINGLE(4, FIFO_RX, 64),
++	MUSB_EP_FIFO_SINGLE(5, FIFO_TX, 64),
++	MUSB_EP_FIFO_SINGLE(5, FIFO_RX, 64),
++};
++
++static const struct musb_hdrc_config sunxi_musb_hdrc_config_suniv = {
++	.fifo_cfg       = sunxi_musb_mode_cfg_suniv,
++	.fifo_cfg_size  = ARRAY_SIZE(sunxi_musb_mode_cfg_suniv),
++	.multipoint	= true,
++	.dyn_fifo	= true,
++	/* Two FIFOs per endpoint, plus ep_0. */
++	.num_eps	= (ARRAY_SIZE(sunxi_musb_mode_cfg_suniv) / 2) + 1,
++	/* 1 << (10 + 2) = 4 KiB */
++	.ram_bits	= 10,
++};
++
+ static int sunxi_musb_probe(struct platform_device *pdev)
+ {
+ 	struct musb_hdrc_platform_data	pdata;
+@@ -834,7 +865,7 @@
+ };
+ 
+ static const struct sunxi_musb_cfg suniv_f1c100s_musb_cfg = {
+-	.hdrc_config = &sunxi_musb_hdrc_config_5eps,
++	.hdrc_config = &sunxi_musb_hdrc_config_suniv,
+ 	.has_sram = true,
+ 	.has_reset = true,
+ 	.no_configdata = true,

@@ -219,6 +219,24 @@ Su suniv U-Boot proper non conosce la sorgente di boot (header SPL in SRAM
 sovrascritto dai vettori): la scelta SD/NAND nel `bootcmd` si basa su
 `test -e mmc 0:1 zImage`.
 
+## USB OTG (MUSB): FIFO da 4 KiB
+
+La FIFO della MUSB è la SRAM D, **4 KiB** (`sram_d`, `reg = <0x10000 0x1000>`
+in `suniv-f1c100s.dtsi`). Il driver `musb/sunxi.c` di Linux 6.12.111 usa per
+suniv il layout a 5 endpoint da 512 byte con `ram_bits = 11`: 5184 byte su 4096.
+Gli endpoint oltre 4 KiB non funzionano, in silenzio. Trovato in host mode
+dietro l'hub LAN9512 della EGARE (2026-11-28): il bulk-in di `smsc95xx` finiva
+su EP4 RX (3648..4159) e non si completava mai, mentre controllo, bulk-out e
+interrupt-in (tutti sotto 4 KiB) funzionavano. Sintomo: link su, `tx_packets`
+che sale, `rx_packets` e `rx_errors` a 0, la RX FIFO del LAN9512 che si riempie.
+
+Correzione: `patches/linux/0001-usb-musb-sunxi-fit-the-suniv-FIFO-layout-in-4-KiB.patch`,
+tre coppie da 512 byte per il bulk e due da 64 per gli interrupt (3392 byte).
+Vale per entrambe le board; `make check` (sezione 8b) controlla che sia
+applicata. Fonte sulla dimensione: il datasheet dichiara 2 KiB, ma gli esempi
+di codice usano almeno 4 KiB ([tinyusb #1220](https://github.com/hathach/tinyusb/pull/1220)),
+e gli endpoint fino a 3135 byte funzionano.
+
 ## Aperti
 
 * **Seconda copia SPL nel blocco 1.** Non verificato che la BROM la usi se il

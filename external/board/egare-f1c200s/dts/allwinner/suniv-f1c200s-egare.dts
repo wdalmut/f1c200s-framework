@@ -22,6 +22,25 @@
 		pins = "PE11", "PE12";
 		function = "i2c0";
 	};
+
+	/*
+	 * USB_SEL (PE4) pilota i mux FSUSB42 U6/U7 e il gate di Q2.
+	 * Alto: CPU -> upstream del LAN9512 (hub + Ethernet), connettore OTG
+	 * sulla porta 2 dell'hub, USB0_ID a massa. Basso (default, pull-down
+	 * sulla SoM): CPU diretta sul connettore OTG, come serve alla BROM
+	 * per il FEL. Linux lo tiene alto: la USB della CPU e' solo host.
+	 */
+	usb-sel-hog {
+		gpio-hog;
+		gpios = <4 4 GPIO_ACTIVE_HIGH>;	/* PE4 */
+		output-high;
+		line-name = "usb-sel";
+	};
+};
+
+/* Il DTS Lctech la mette in peripheral; qui dietro c'e' l'hub LAN9512. */
+&usb_otg {
+	dr_mode = "host";
 };
 
 &i2c0 {

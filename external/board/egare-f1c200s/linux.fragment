@@ -8,3 +8,14 @@
 # nodo c'e' ma /sys/bus/i2c/devices/0-0050/eeprom no. Built-in come il
 # resto dei driver della board.
 CONFIG_EEPROM_AT24=y
+
+# LAN9512 sulla SoM: hub USB a 3 porte con l'Ethernet 10/100 sulla porta 1,
+# dietro la MUSB in host (DTS EGARE). Driver smsc95xx; seleziona da se'
+# SMSC_PHY, ripetuto perche' senza il PHY l'interfaccia non va mai su.
+CONFIG_USB_USBNET=y
+CONFIG_USB_NET_SMSC95XX=y
+CONFIG_SMSC_PHY=y
+
+# usbmon: traccia URB per URB in /sys/kernel/debug/usb/usbmon/. Serve a
+# vedere se i bulk-in del LAN9512 vengono sottomessi e mai completati.
+CONFIG_USB_MON=y

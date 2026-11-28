@@ -34,10 +34,11 @@ external/
     uboot.fragment                          opzioni U-Boot sopra lctech_pi_f1c200s_defconfig
     genimage.cfg                            layout dell'immagine SD
     patches/uboot/                          patch SPL SPI NAND (serie Icenowy, portata)
+    patches/linux/                          FIFO MUSB suniv entro 4 KiB (RX USB in host)
     readme.txt
   board/egare-f1c200s/                      solo le differenze, sopra ftvogue-f1c200s/
-    dts/allwinner/suniv-f1c200s-egare.dts   DTS Lctech + i2c0 PE11/PE12 + EEPROM 0x50
-    linux.fragment                          dopo quello FTVOGUE: EEPROM_AT24
+    dts/allwinner/suniv-f1c200s-egare.dts   DTS Lctech + i2c0 PE11/PE12 + EEPROM 0x50 + USB host/PE4
+    linux.fragment                          dopo quello FTVOGUE: EEPROM_AT24, smsc95xx, usbmon
     uboot.fragment                          dopo quello FTVOGUE: bootcmd con il DTB EGARE
     genimage.cfg                            copia FTVOGUE con il DTB EGARE
     readme.txt
@@ -231,4 +232,6 @@ rompe in silenzio senza bisogno di artefatti.
 | `flash-nand: rilettura diversa` | bad block nella zona scritta: xfel non li salta (vedi BOARD-FACTS, "Layout SPI NAND") |
 | `ubi part ubi` / attach UBI fallisce | flash non cancellata per intero, o geometria UBI errata (sezione 10 di check) |
 | `boot: SD` senza SD avviabile | SD non avviabile ma con la nostra FAT inserita |
+| EGARE: `eth0` link su, `tx_packets` sale, `rx_packets` e `rx_errors` fermi a 0 | FIFO MUSB oltre 4 KiB: `patches/linux/0001-*` non applicata (sezione 8b di check) |
+| EGARE: `lsusb` vede solo il root hub | PE4 (`USB_SEL`) basso o MUSB non in host: hog e `dr_mode` nel DTS EGARE |
 | `rootfs: manca /boot/zImage` in `make check` | `BR2_LINUX_KERNEL_INSTALL_TARGET` attivato dopo la build del kernel: `make linux-reinstall && make` |

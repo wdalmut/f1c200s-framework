@@ -192,6 +192,19 @@ else
 	skip "map dell'SPL non trovata: build fatta altrove?"
 fi
 
+# --- 8b. FIFO della MUSB entro i 4 KiB di SRAM D -----------------------------
+# Senza patches/linux/0001-* il driver dispone 5184 byte di FIFO su 4 KiB:
+# gli endpoint oltre 4 KiB non funzionano e un bulk-in li' non si completa
+# mai (LAN9512 EGARE: link su, TX ok, RX a 0 senza errori).
+musbc="$(ls -d "$BUILD"/linux-*/drivers/usb/musb/sunxi.c 2>/dev/null | head -1)"
+if [ -n "$musbc" ] && [ -f "$musbc" ]; then
+	grep -A1 'suniv_f1c100s_musb_cfg = {' "$musbc" | grep -q 'sunxi_musb_hdrc_config_suniv' \
+		&& pass "kernel: FIFO MUSB suniv entro 4 KiB (patch linux applicata)" \
+		|| fail "kernel: FIFO MUSB suniv a 5 endpoint da 512 — patch linux non applicata?"
+else
+	skip "sorgenti del kernel non trovati: FIFO MUSB non verificata"
+fi
+
 # --- 9. U-Boot sta nella zona boot della NAND --------------------------------
 # flash-nand.sh scrive u-boot-sunxi-with-spl.bin lineare a 0x40000; la
 # partizione UBI parte a 0x100000. Se U-Boot cresce oltre, il primo PEB di
@@ -257,6 +270,27 @@ if [ "$DTB_NAME" = suniv-f1c200s-egare.dtb ]; then
 			&& pass "kernel: CONFIG_EEPROM_AT24=y" || fail "kernel: atteso CONFIG_EEPROM_AT24=y"
 	else
 		skip "config del kernel non trovata: EEPROM_AT24 non verificato"
+	fi
+
+	# --- 13. EGARE: LAN9512 dietro la MUSB ----------------------------------
+	# Con la MUSB in peripheral (default Lctech) o PE4 basso il LAN9512 non
+	# si vede, e senza smsc95xx si vede ma eth0 non compare: tutto in silenzio.
+	if [ -x "$HOSTBIN/dtc" ]; then
+		dts="$("$HOSTBIN/dtc" -I dtb -O dts "$dtb" 2>/dev/null)"
+		echo "$dts" | sed -n '/usb@1c13000 {/,/^\t\t};/p' | grep -q 'dr_mode = "host"' \
+			&& pass "DTB: MUSB in host" || fail "DTB: MUSB non in host (LAN9512 invisibile)"
+		echo "$dts" | sed -n '/usb-sel-hog {/,/};/p' | grep -q 'output-high' \
+			&& pass "DTB: hog usb-sel (PE4) alto" || fail "DTB: manca l'hog usb-sel su PE4"
+	else
+		skip "dtc non disponibile: MUSB e USB_SEL non verificati"
+	fi
+	if [ -n "$kcfg" ] && [ -f "$kcfg" ]; then
+		for o in USB_USBNET USB_NET_SMSC95XX SMSC_PHY; do
+			grep -q "^CONFIG_$o=y$" "$kcfg" \
+				&& pass "kernel: CONFIG_$o=y" || fail "kernel: atteso CONFIG_$o=y"
+		done
+	else
+		skip "config del kernel non trovata: smsc95xx non verificato"
 	fi
 fi
 

@@ -64,6 +64,56 @@ Le ragioni dell'organizzazione dei file sono nel
   `hexdump -C` legge 256 byte, tutti `ff`; scrittura di `a5` all'offset 255
   con `dd`, riletto `a5`, poi ripristinato `ff`.
 
+### LAN9512 (hub USB + Ethernet 10/100)
+
+* **`USB_SEL` = PE4** (pin 45 del QFN88) pilota i mux FSUSB42 U6/U7 e il gate
+  di Q2. Alto: CPU → upstream del LAN9512, connettore OTG sulla porta 2
+  dell'hub, `USB0_ID` a massa. Basso (default, pull-down sulla SoM): CPU
+  diretta sul connettore OTG, come serve alla BROM per il FEL. Fonte: schema
+  SoM, fogli CPU e USB.
+* Il DTS EGARE tiene PE4 alto con un `gpio-hog` e mette la MUSB in
+  `dr_mode = "host"` (il DTS Lctech la vuole `peripheral`). Da Linux la porta
+  OTG è quindi solo host, attraverso l'hub.
+* Kernel: `USB_USBNET`, `USB_NET_SMSC95XX`, `SMSC_PHY` (fragment EGARE), più la
+  patch della FIFO MUSB descritta in BOARD-FACTS, "USB OTG (MUSB)". Senza la
+  patch il link sale ma non si riceve nulla.
+* **Verificato** (prova su board, 2026-11-28): hub `1-1` a 3 porte, Ethernet su
+  `1-1.1` in high-speed, `Link is Up - 100Mbps/Full`, `ping` al gateway con
+  risposta in ~1.2 ms.
+* Niente EEPROM sul LAN9512 (pin EE* liberi): `smsc95xx` usa un **MAC casuale**
+  a ogni avvio. Da risolvere con il MAC nella M24C02 o passato da U-Boot nel DT.
+* Le coppie TX/RX verso l'RJ45 sono scambiate di proposito (nota sullo schema):
+  le copre l'Auto-MDIX, che il driver `smsc` accende comunque scavalcando lo
+  strap `AUTOMDIX_EN`.
+* Diagnosi: nell'immagine c'è `ethtool`. `ethtool -d eth0` legge i registri
+  del LAN9512 (`RX_FIFO_INF` a 0x18, `MAC_CR` a 0x100), `ethtool -t eth0` fa il
+  loopback interno del PHY, `ethtool --phy-statistics eth0` gli errori di
+  simbolo. `CONFIG_USB_MON` dà `/sys/kernel/debug/usb/usbmon/`.
+
+#### Da correggere nella prossima revisione hardware
+
+Tutto confrontato con il datasheet LAN9512 (DS00002304A, figura 2-2 e
+tabelle 2-3, 2-6) e con lo schema Mavis, dove lo stesso circuito funziona.
+
+* **L7 (SoM) va tolta.** Collega `VDD18CORE` a `VDD18ETHPLL`, mettendo in
+  parallelo due regolatori interni diversi: per la figura 2-2 `VDD18ETHPLL` si
+  alimenta solo da `VDD18USBPLL` attraverso la ferrite (L6). Tagliata sulla
+  board di prova (2026-11-28): boot e Ethernet funzionano. Non era la causa
+  della RX bloccata, ma è comunque un errore.
+* **C50/C51 invertiti (SoM).** La figura 2-2 vuole 1,0 µF su `VDD18USBPLL`
+  (l'uscita del regolatore) e 0,1 µF su `VDD18ETHPLL`; lo schema ha il
+  contrario (come Mavis, che funziona lo stesso).
+* **LED dell'RJ45 (carrier) al contrario.** `nLNKA_LED`/`nSPD_LED` sono OD12
+  attivi bassi: il LED va da 3V3 (anodo) al pin attraverso la resistenza, come
+  su Mavis. Sulla carrier l'anodo va al pin e il catodo a GND: i LED restano
+  accesi debolmente dal pull-up interno. Solo estetico.
+* **Nomi delle net dei LED (carrier).** Nel foglio Ethernet `ETH0_LNK`/`ETH0_ACT`,
+  sul connettore `ETH0_LNK_LED`/`ETH0_SPD_LED`: se le label non coincidono i
+  LED sono scollegati. "ACT" in realtà è `nSPD_LED` (velocità).
+* **Da verificare: pin TEST.** Tabella 2-3: TEST1 (13) e TEST4 (47) scollegati,
+  TEST2 (**34**) a VSS, TEST3 (40) a VDD33IO. Nel simbolo sembra esserci
+  "TEST2 33", e il pin 33 è VDD33IO.
+
 ## Build e flash
 
 Sempre con `O=output-egare`: senza, si sovrascrive la build FTVOGUE in
