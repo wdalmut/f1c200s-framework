@@ -209,5 +209,23 @@
 		compatible = "st,24c02", "atmel,24c02";
 		reg = <0x50>;
 		pagesize = <16>;
+
+		/*
+		 * Record di identificazione del modulo, schema v1.0
+		 * (docs/EEPROM-ID.md). Celle solo per leggerle da userspace:
+		 * niente nvmem-cells sul nodo Ethernet, il MAC lo passa U-Boot
+		 * con local-mac-address dopo aver verificato magic e CRC.
+		 * Niente read-only: la produzione scrive da Linux con som-id.
+		 */
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			som-id@0 { reg = <0x00 0x40>; };
+			mac-address@10 { reg = <0x10 0x06>; };
+			mac-address@16 { reg = <0x16 0x06>; };
+			serial-number@1c { reg = <0x1c 0x0c>; };
+		};
 	};
 };

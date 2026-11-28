@@ -1,0 +1,8 @@
+config BR2_PACKAGE_SOM_ID
+	bool "som-id"
+	help
+	  Legge, verifica e scrive il record di identificazione del
+	  modulo (schema v1.0) nell'EEPROM a 0x50 di I2C0: codice
+	  prodotto, revisione, seriale, MAC. Vedi docs/EEPROM-ID.md.
+
+	  https://github.com/egaree/som-id

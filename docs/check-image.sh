@@ -298,9 +298,43 @@ if [ "$DTB_NAME" = suniv-f1c200s-egare.dtb ]; then
 			&& pass "DTB: i2c0 attivo" || fail "DTB: i2c0 non attivo"
 		echo "$i2c0" | grep -q 'eeprom@50 {' \
 			&& pass "DTB: eeprom@50 su i2c0" || fail "DTB: manca eeprom@50 su i2c0"
+
+		# Celle nvmem del record di identificazione (docs/EEPROM-ID.md):
+		# offset fissi dello schema v1.0. Niente read-only ne' wp-gpios
+		# (la produzione scrive da Linux; con wp-gpios nvmem sbloccherebbe
+		# il WP a ogni scrittura) e nessuna nvmem-cells verso i MAC: li da'
+		# U-Boot dopo aver verificato magic e CRC. dtc emette "phandle"
+		# solo per i nodi referenziati, quindi un phandle su una cella MAC
+		# vuol dire che qualcuno ci punta.
+		eeprom="$(echo "$i2c0" | sed -n '/eeprom@50 {/,/^\t\t\t};/p')"
+		echo "$eeprom" | grep -q 'nvmem-layout {' \
+			&& echo "$eeprom" | grep -q 'compatible = "fixed-layout";' \
+			&& pass "DTB: eeprom@50 con nvmem-layout fixed-layout" \
+			|| fail "DTB: eeprom@50 senza nvmem-layout fixed-layout"
+		for cell in 'som-id@0:<0x00 0x40>' 'mac-address@10:<0x10 0x06>' \
+			    'mac-address@16:<0x16 0x06>' 'serial-number@1c:<0x1c 0x0c>'; do
+			name="${cell%%:*}"; reg="${cell#*:}"
+			node="$(echo "$eeprom" | sed -n "/\t$name {/,/};/p")"
+			if [ -z "$node" ]; then
+				fail "DTB: manca la cella $name"
+			elif echo "$node" | grep -qF "reg = $reg;"; then
+				pass "DTB: cella $name a $reg"
+			else
+				fail "DTB: cella $name non a $reg: $(echo "$node" | grep 'reg =' | tr -d '\t')"
+			fi
+			case "$name" in mac-address@*)
+				echo "$node" | grep -q 'phandle' \
+					&& fail "DTB: la cella $name e' referenziata (nvmem-cells verso un MAC)" ;;
+			esac
+		done
+		echo "$eeprom" | grep -qE '^\t\t\t\t(read-only|wp-gpios)' \
+			&& fail "DTB: eeprom@50 con read-only o wp-gpios" \
+			|| pass "DTB: eeprom@50 scrivibile da Linux (niente read-only, niente wp-gpios)"
 	else
 		skip "dtc non disponibile: i2c0 ed EEPROM non verificati"
 	fi
+	[ -x "$IMAGES/../target/usr/bin/som-id" ] \
+		&& pass "rootfs: /usr/bin/som-id" || fail "rootfs: manca /usr/bin/som-id"
 	if [ -n "$kcfg" ] && [ -f "$kcfg" ]; then
 		grep -q '^CONFIG_EEPROM_AT24=y$' "$kcfg" \
 			&& pass "kernel: CONFIG_EEPROM_AT24=y" || fail "kernel: atteso CONFIG_EEPROM_AT24=y"

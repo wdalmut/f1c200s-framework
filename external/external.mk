@@ -4,11 +4,11 @@
 #
 # FTVOGUE F1C200S (Allwinner F1C200s, suniv) — external tree
 #
-# Questo albero non ha (ancora) package propri. Il wildcard sotto li raccoglie
-# automaticamente appena ne compare uno in package/<nome>/<nome>.mk, senza
+# Package propri: per ora solo som-id (EEPROM di identificazione). Il
+# wildcard sotto li raccoglie da package/<nome>/<nome>.mk, senza
 # dover toccare questo file.
 #
-# Non c'e' nemmeno un post-image.sh: l'immagine SD la produce genimage con
+# Non c'e' un post-image.sh: l'immagine SD la produce genimage con
 # board/ftvogue-f1c200s/genimage.cfg, perche' questa board non ha nessuna
 # catena di packaging vendor. E' tutto mainline: SPL+U-Boot a 8 KiB, una FAT
 # e una ext4. Vedi docs/BOARD-FACTS.md.
